@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  # ── Gateway ──────────────────────────────────
+  api-gateway:
+    build: ./apps/api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - ORCHESTRATION_HOST=http://orchestration-engine:8001
+      - LLM_ROUTER_HOST=http://llm-router:8002
+    depends_on:
+      - orchestration-engine
+    restart: unless-stopped
+    networks:
+      - arch-net
+
+  # ── Orchestration Engine ─────────────────────
+  orchestration-engine:
+    build: ./apps/orchestration-engine
+    ports:
+      - "8001:8001"
+    environment:
+      - AGENT_RUNTIME_HOST=http://agent-runtime:8003
+      - LLM_ROUTER_HOST=http://llm-router:8002
+      - RESPONSE_CACHE_TTL=300
+    depends_on:
+      - agent-runtime
+      - llm-router
+    restart: unless-stopped
+    networks:
+      - arch-net
+
+  # ── Agent Runtime ────────────────────────────
+  agent-runtime:
+    build: ./apps/agent-runtime
+    ports:
+      - "8003:8003"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
+      - LLM_ROUTER_HOST=http://llm-router:8002
+    volumes:
+      - ./data:/data:ro
+    restart: unless-stopped
+    networks:
+      - arch-net
+
+  # ── LLM Router ───────────────────────────────
+  llm-router:
+    build: ./apps/llm-router
+    ports:
+      - "8002:8002"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
+    restart: unless-stopped
+    networks:
+      - arch-net
+
+networks:
+  arch-net:
+    driver: bridge
