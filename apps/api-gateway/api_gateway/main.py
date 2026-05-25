@@ -3,7 +3,8 @@ import os, json, asyncio
 from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from pydantic import BaseModel
@@ -19,6 +20,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Architecture Assistant API Gateway", version="1.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+APP_DIR = os.path.dirname(__file__)
+LEGACY_HTML_PATH = os.path.join(APP_DIR, "templates", "index.html")
+FRONTEND_DIST = os.getenv(
+    "FRONTEND_DIST",
+    os.path.abspath(os.path.join(APP_DIR, "..", "..", "..", "frontend", "dist")),
+)
+FRONTEND_INDEX = os.path.join(FRONTEND_DIST, "index.html")
+
+if os.path.exists(os.path.join(FRONTEND_DIST, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="frontend-assets")
 
 class AnalyzeRequest(BaseModel):
     prompt: str
@@ -54,9 +66,16 @@ async def analyze_stream(req: AnalyzeRequest):
                     yield line + "\n"
     return StreamingResponse(proxy(), media_type="text/event-stream")
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def home():
-    import os
-    html_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
-    with open(html_path, "r", encoding="utf-8") as f:
+    """Serve the polished Vue frontend when built; fall back to the legacy demo."""
+    if os.path.exists(FRONTEND_INDEX):
+        return FileResponse(FRONTEND_INDEX)
+    with open(LEGACY_HTML_PATH, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read())
+
+@app.get("/legacy", response_class=HTMLResponse)
+async def legacy_home():
+    """Keep the original single-file demo available for backup presentations."""
+    with open(LEGACY_HTML_PATH, "r", encoding="utf-8") as f:
         return f.read()
