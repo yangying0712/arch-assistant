@@ -4,6 +4,8 @@
 - RequirementAnalysisAgent: 需求解析 - 从自然语言中提取架构关键特征
 - ArchitectureMatchingAgent: 架构匹配 - 将特征与知识库中的架构风格匹配
 - EvaluationAgent: 评估生成 - 多维度对比分析，生成推荐报告
+
+知识库支持: Neo4j 图数据库 (优先) + JSON 文件 (fallback)
 """
 import json, re, os
 from typing import TypedDict, Annotated, Literal
@@ -12,7 +14,18 @@ from langgraph.graph.message import add_messages
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from loguru import logger
+from .neo4j_kb import Neo4jKnowledgeBase  # Neo4j 图数据库查询
+
 KNOWLEDGE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "architecture_styles.json")
+
+# 全局 Neo4j 知识库实例（单例）
+_neo4j_kb: Neo4jKnowledgeBase | None = None
+
+def get_neo4j_kb() -> Neo4jKnowledgeBase:
+    global _neo4j_kb
+    if _neo4j_kb is None:
+        _neo4j_kb = Neo4jKnowledgeBase()
+    return _neo4j_kb
 
 # ── State ──────────────────────────────────────────
 class AgentState(TypedDict):
@@ -41,7 +54,28 @@ def load_knowledge() -> list[dict]:
         return json.load(f)
 
 def build_knowledge_summary() -> str:
-    """构建增强的知识摘要 — 为每种架构标注强信号关键词和禁止信号"""
+    """构建增强的知识摘要 — 优先 Neo4j 图查询，fallback JSON"""
+    kb = get_neo4j_kb()
+    if kb.is_available():
+        # 使用 Neo4j 图数据库上下文
+        neo4j_summary = kb.get_all_styles_summary()
+        if neo4j_summary:
+            lines = []
+            for s in neo4j_summary:
+                kws = ', '.join(s.get('keywords', [])[:4])
+                antis = ', '.join(s.get('anti_keywords', [])[:3])
+                pros = ', '.join(s.get('pros', [])[:2])
+                cons = ', '.join(s.get('cons', [])[:2])
+                lines.append(
+                    f"- {s['name']} [{s.get('category','')}] | "
+                    f"触发词: {kws} | 排除词: {antis} | "
+                    f"优点: {pros} | 缺点: {cons}"
+                )
+            logger.info("📊 使用 Neo4j 知识图谱 ({} 种架构)", len(lines))
+            return "\n".join(lines)
+
+    # Fallback: JSON 知识库
+    logger.info("📄 Neo4j 不可用，使用 JSON 知识库")
     styles = load_knowledge()
     lines = []
     for s in styles:
@@ -184,6 +218,12 @@ async def architecture_matching(state: AgentState) -> AgentState:
         knowledge_base=knowledge,
         features=json.dumps(features, ensure_ascii=False, indent=2)
     )
+    # 注入 Neo4j 图上下文（关键词匹配 + 互补关系）
+    kb = get_neo4j_kb()
+    if kb.is_available():
+        neo4j_context = kb.query_architecture_context(features.get("features", []))
+        if neo4j_context:
+            prompt += "\n\n" + neo4j_context
     # 注入知识进化：历史案例作为Few-shot参考
     case_context = state.get("case_context", "")
     if case_context:
