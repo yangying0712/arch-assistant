@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide } from 'vue'
+import { computed, ref } from 'vue'
 import axios from 'axios'
 import InputPanel from './components/InputPanel.vue'
 import FeatureTags from './components/FeatureTags.vue'
@@ -12,7 +12,7 @@ import ReportPanel from './components/ReportPanel.vue'
 import type { Candidate } from './components/CandidateCards.vue'
 
 interface AnalysisResult {
-  features: { features?: string[] } | null
+  features: { features?: string[]; constraints?: Record<string, string>; domain?: string } | null
   candidates: Candidate[] | null
   report: string | null
   cached: boolean
@@ -20,26 +20,28 @@ interface AnalysisResult {
 
 const result = ref<AnalysisResult | null>(null)
 const loading = ref(false)
-
 const topArchName = ref('')
+
+const topCandidate = computed(() => result.value?.candidates?.[0])
+const featureCount = computed(() => result.value?.features?.features?.length ?? 0)
 
 async function runAnalysis(prompt: string, sessionId: string) {
   loading.value = true
   result.value = null
+  topArchName.value = ''
 
   try {
-    // Try SSE streaming first for real-time progress
     const sseRes = await fetch('/api/v1/analyze/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, session_id: sessionId }),
     })
 
-    if (sseRes.ok) {
-      const reader = sseRes.body!.getReader()
+    if (sseRes.ok && sseRes.body) {
+      const reader = sseRes.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      const data: any = { features: null, candidates: null, report: null }
+      const data: Partial<AnalysisResult> = { features: null, candidates: [], report: null }
 
       while (true) {
         const { done, value } = await reader.read()
@@ -55,21 +57,22 @@ async function runAnalysis(prompt: string, sessionId: string) {
             if (event.event === 'features') data.features = event.data
             if (event.event === 'candidates') data.candidates = event.data
             if (event.event === 'report') data.report = event.data
-          } catch { /* skip parse errors */ }
+          } catch {
+            // Ignore incomplete SSE frames.
+          }
         }
       }
 
       result.value = {
-        features: data.features,
-        candidates: data.candidates || [],
-        report: data.report || null,
+        features: data.features ?? null,
+        candidates: data.candidates ?? [],
+        report: data.report ?? null,
         cached: false,
       }
     } else {
       throw new Error(`SSE failed: ${sseRes.status}`)
     }
   } catch {
-    // Fallback to regular endpoint
     try {
       const res = await axios.post('/api/v1/analyze', { prompt, session_id: sessionId })
       result.value = {
@@ -79,17 +82,15 @@ async function runAnalysis(prompt: string, sessionId: string) {
         cached: res.data.cached || false,
       }
     } catch (e: any) {
-      console.error('API error:', e)
       result.value = {
         features: null,
         candidates: [],
-        report: '❌ 请求失败: ' + (e.response?.data?.detail || e.message),
+        report: '请求失败：' + (e.response?.data?.detail || e.message),
         cached: false,
       }
     }
   } finally {
     loading.value = false
-    // Set top arch for topology
     if (result.value?.candidates?.length) {
       topArchName.value = result.value.candidates[0].name
     }
@@ -98,104 +99,101 @@ async function runAnalysis(prompt: string, sessionId: string) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950">
-    <!-- Header -->
-    <header class="glass border-b border-blue-500/10 sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+  <div class="min-h-screen app-shell text-slate-100">
+    <header class="sticky top-0 z-50 border-b border-white/10 bg-[#09111f]/90 backdrop-blur-xl">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-            A
+          <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-sm font-black text-slate-950 shadow-lg shadow-cyan-500/25">
+            AA
           </div>
           <div>
-            <h1 class="text-base font-bold text-slate-100">Architecture Assistant</h1>
-            <p class="text-xs text-slate-500">软件架构风格智能助手 · Vue 3</p>
+            <h1 class="text-base font-bold tracking-normal text-white">Architecture Assistant</h1>
+            <p class="text-xs text-slate-400">软件架构风格智能助手 · 多 Agent 决策工作台</p>
           </div>
         </div>
-        <div class="flex items-center gap-3 text-xs text-slate-500">
-          <span v-if="result?.cached" class="px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20">
-            ⚡ 缓存命中
+        <div class="flex items-center gap-2 text-xs">
+          <span class="hidden rounded border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-emerald-200 sm:inline-flex">
+            4 个微服务
+          </span>
+          <span class="hidden rounded border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-cyan-200 sm:inline-flex">
+            3 个智能体
+          </span>
+          <span v-if="result?.cached" class="rounded border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-amber-200">
+            缓存命中
           </span>
         </div>
       </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Left: Input + Progress -->
-        <div class="lg:col-span-5 space-y-4">
+    <main class="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-12">
+      <section class="lg:col-span-5 xl:col-span-4">
+        <div class="sticky top-20 space-y-4">
           <InputPanel @submit="runAnalysis" @call-utterance="runAnalysis" />
         </div>
+      </section>
 
-        <!-- Right: Results -->
-        <div class="lg:col-span-7 space-y-5">
-          <!-- Empty State -->
-          <div v-if="!result && !loading" class="glass p-12 text-center">
-            <div class="text-5xl mb-4">🏗️</div>
-            <h2 class="text-xl font-bold text-slate-300 mb-2">软件架构风格智能助手</h2>
-            <p class="text-sm text-slate-500 max-w-md mx-auto">
-              在左侧输入你的软件需求描述，AI 将自动提取特征、
-              匹配最合适的架构风格，并生成专业评估报告。
+      <section class="space-y-5 lg:col-span-7 xl:col-span-8">
+        <div v-if="!result && !loading" class="hero-panel overflow-hidden rounded-lg border border-white/10 p-6 sm:p-8">
+          <div class="max-w-2xl">
+            <p class="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Architecture Decision Support</p>
+            <h2 class="max-w-2xl text-2xl font-bold text-white sm:text-3xl">从自然语言需求到可解释的架构推荐</h2>
+            <p class="mt-3 max-w-xl text-sm leading-7 text-slate-300">
+              输入业务场景后，系统会提取关键约束、排序候选架构、生成对比矩阵、拓扑图和决策溯源，用于课程演示和架构选型说明。
             </p>
           </div>
+          <div class="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="metric-card">
+              <span class="metric-value">12</span>
+              <span class="metric-label">架构风格知识库</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-value">20</span>
+              <span class="metric-label">典型测试场景</span>
+            </div>
+            <div class="metric-card">
+              <span class="metric-value">95%</span>
+              <span class="metric-label">当前回归准确率</span>
+            </div>
+          </div>
+        </div>
 
-          <!-- Loading Skeleton -->
-          <div v-if="loading" class="space-y-4">
-            <div v-for="i in 3" :key="i" class="glass p-5 animate-pulse">
-              <div class="h-4 bg-slate-700/50 rounded w-1/3 mb-4" />
-              <div class="space-y-2">
-                <div class="h-3 bg-slate-700/30 rounded w-full" />
-                <div class="h-3 bg-slate-700/30 rounded w-2/3" />
-              </div>
+        <div v-if="loading" class="grid gap-4">
+          <div v-for="i in 3" :key="i" class="glass p-5">
+            <div class="mb-4 h-4 w-1/3 rounded bg-slate-700/60" />
+            <div class="space-y-2">
+              <div class="h-3 w-full rounded bg-slate-800" />
+              <div class="h-3 w-2/3 rounded bg-slate-800" />
+            </div>
+          </div>
+        </div>
+
+        <template v-if="result">
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div class="summary-tile">
+              <span class="summary-label">首选架构</span>
+              <strong>{{ topCandidate?.name || '暂无' }}</strong>
+            </div>
+            <div class="summary-tile">
+              <span class="summary-label">匹配度</span>
+              <strong>{{ topCandidate ? `${(topCandidate.match_score * 100).toFixed(0)}%` : '--' }}</strong>
+            </div>
+            <div class="summary-tile">
+              <span class="summary-label">提取特征</span>
+              <strong>{{ featureCount }} 项</strong>
             </div>
           </div>
 
-          <!-- Results -->
-          <template v-if="result">
-            <!-- Features -->
-            <FeatureTags
-              v-if="result.features?.features?.length"
-              :features="result.features.features"
-            />
-
-            <!-- Candidates -->
-            <CandidateCards
-              v-if="result.candidates?.length"
-              :candidates="result.candidates"
-            />
-
-            <!-- Radar Chart -->
-            <RadarChart
-              v-if="result.candidates?.length"
-              :candidates="result.candidates"
-            />
-
-            <!-- Topology -->
-            <TopologyDiagram
-              v-if="topArchName"
-              :arch-name="topArchName"
-            />
-
-            <!-- Decision Trace -->
-            <DecisionTrace
-              v-if="result.candidates?.length"
-              :candidates="result.candidates"
-            />
-
-            <!-- Combo -->
-            <ComboRec
-              v-if="result.candidates?.length"
-              :candidates="result.candidates"
-            />
-
-            <!-- Report -->
-            <ReportPanel
-              v-if="result.report"
-              :report="result.report"
-            />
-          </template>
-        </div>
-      </div>
+          <FeatureTags v-if="result.features?.features?.length" :features="result.features.features" />
+          <CandidateCards v-if="result.candidates?.length" :candidates="result.candidates" />
+          <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <RadarChart v-if="result.candidates?.length" :candidates="result.candidates" />
+            <TopologyDiagram v-if="topArchName" :arch-name="topArchName" />
+          </div>
+          <DecisionTrace v-if="result.candidates?.length" :candidates="result.candidates" />
+          <ComboRec v-if="result.candidates?.length" :candidates="result.candidates" />
+          <ReportPanel v-if="result.report" :report="result.report" />
+        </template>
+      </section>
     </main>
   </div>
 </template>
