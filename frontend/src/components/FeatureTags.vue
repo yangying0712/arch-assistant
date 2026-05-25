@@ -3,18 +3,25 @@ defineProps<{ features: string[] }>()
 </script>
 
 <template>
-  <div class="glass p-5 animate-in">
-    <h3 class="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
-      <span>🤖</span> 语义理解与特征提取
-    </h3>
-    <div class="flex flex-wrap gap-2">
-      <span
-        v-for="(f, i) in features"
-        :key="i"
-        class="px-3 py-1.5 bg-blue-500/10 text-blue-300 rounded-lg text-xs font-medium border border-blue-500/20"
-      >
-        {{ f }}
+  <section class="glass p-5 animate-in">
+    <div class="mb-4 flex items-end justify-between gap-3">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">Feature Extraction</p>
+        <h3 class="mt-1 text-lg font-bold text-white">语义理解与特征提取</h3>
+      </div>
+      <span class="rounded border border-cyan-300/20 bg-cyan-300/10 px-2 py-1 text-xs text-cyan-100">
+        {{ features.length }} 项
       </span>
     </div>
-  </div>
+
+    <div class="flex flex-wrap gap-2">
+      <span
+        v-for="feature in features"
+        :key="feature"
+        class="feature-chip"
+      >
+        {{ feature }}
+      </span>
+    </div>
+  </section>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSpeech } from '../composables/useSpeech'
 import { useSSE, type SSEStep } from '../composables/useSSE'
 
@@ -8,38 +8,31 @@ const emit = defineEmits<{
   callUtterance: [prompt: string, sessionId: string]
 }>()
 
-const { isListening, isCallActive, isSpeaking, statusText, startMic, stopMic, startCall, stopCall, speak, stopSpeaking } = useSpeech()
-const { steps, isStreaming, error, streamAnalyze } = useSSE()
+const { isListening, isCallActive, isSpeaking, statusText, startMic, stopMic, startCall, stopCall, stopSpeaking } = useSpeech()
+const { steps, isStreaming, error } = useSSE()
 
 const prompt = ref('')
-const sessionId = ref(crypto.randomUUID())
+
+const samplePrompts = [
+  '开发银行核心交易系统，需要处理转账、存款、贷款等业务，对数据一致性和审计追踪有极高要求，支持日均百万笔交易。',
+  '构建大型 B2C 电商平台，包含商品、订单、支付、物流和评价模块，日活百万级，大促期间流量暴涨。',
+  '开发在线视频处理平台，用户上传视频后需要经过转码、加水印、生成缩略图、内容审核等一系列处理步骤。',
+]
 
 const canSend = computed(() => prompt.value.trim().length > 0 && !isStreaming.value)
 
-// Text submit
-async function handleSend() {
-  if (!canSend.value) return
-  const p = prompt.value.trim()
+function submitPrompt(text = prompt.value) {
+  const value = text.trim()
+  if (!value || isStreaming.value) return
   prompt.value = ''
-  const sid = crypto.randomUUID()
-  sessionId.value = sid
-
-  // Try SSE first
-  try {
-    emit('submit', p, sid)
-  } catch {
-    // handled by parent
-  }
+  emit('submit', value, crypto.randomUUID())
 }
 
-// Voice call callback
 function handleVoiceUtterance(text: string) {
-  const sid = crypto.randomUUID()
-  sessionId.value = sid
-  emit('callUtterance', text, sid)
+  emit('callUtterance', text, crypto.randomUUID())
 }
 
-function handleStartCall() {
+function toggleCall() {
   if (isCallActive.value) {
     stopCall()
   } else {
@@ -47,7 +40,6 @@ function handleStartCall() {
   }
 }
 
-// Voice mic (single)
 async function handleMic() {
   if (isListening.value) {
     stopMic()
@@ -56,124 +48,126 @@ async function handleMic() {
   try {
     const text = await startMic()
     prompt.value = text
-    handleSend()
+    submitPrompt(text)
   } catch {
-    // user cancelled
+    // The user cancelled or the browser denied speech recognition.
   }
 }
 
 const stepIcons: Record<SSEStep['status'], string> = {
   pending: '○',
-  active: '◉',
+  active: '●',
   done: '✓',
-  error: '✕',
+  error: '!',
 }
+
 const stepIconColors: Record<SSEStep['status'], string> = {
   pending: 'text-slate-600',
-  active: 'text-blue-400 animate-pulse',
-  done: 'text-green-400',
-  error: 'text-red-400',
+  active: 'text-cyan-300',
+  done: 'text-emerald-300',
+  error: 'text-rose-300',
 }
 </script>
 
 <template>
   <div class="space-y-4">
-    <!-- Input Area -->
-    <div class="glass p-4">
-      <textarea
-        v-model="prompt"
-        class="w-full h-28 p-4 bg-slate-900/50 border border-slate-600/30 rounded-xl text-slate-200 placeholder-slate-500 text-sm resize-none focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
-        placeholder="描述你的软件需求，例如：开发一个跨平台的即时通讯系统，要求支持万人同时在线..."
-        :disabled="isStreaming"
-        @keydown.enter.exact.prevent="handleSend"
-      />
+    <div class="glass overflow-hidden">
+      <div class="border-b border-white/10 px-5 py-4">
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">Requirement Input</p>
+        <h2 class="mt-1 text-lg font-bold text-white">描述你的软件系统需求</h2>
+        <p class="mt-1 text-xs leading-5 text-slate-400">支持文本输入、单次语音输入和连续语音通话。</p>
+      </div>
 
-      <div class="flex items-center justify-between mt-3">
-        <div class="flex items-center gap-2">
-          <!-- Mic button -->
-          <button
-            @click="handleMic"
-            :class="[
-              'px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5',
-              isListening
-                ? 'bg-red-600 text-white animate-pulse'
-                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/30'
-            ]"
-            :disabled="isCallActive || isStreaming"
-            :title="isListening ? '停止' : '语音输入'"
-          >
-            {{ isListening ? '⏹' : '🎤' }}
-            <span class="hidden sm:inline">{{ isListening ? '聆听中' : '语音' }}</span>
-          </button>
+      <div class="p-5">
+        <textarea
+          v-model="prompt"
+          class="h-36 w-full resize-none rounded-lg border border-white/10 bg-slate-950/70 p-4 text-sm leading-6 text-slate-100 placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-400/10"
+          placeholder="例如：开发一个跨平台即时通讯系统，支持万人同时在线，要求消息实时可靠，后期需要快速扩展视频通话能力。"
+          :disabled="isStreaming"
+          @keydown.enter.exact.prevent="submitPrompt()"
+        />
 
-          <!-- Voice Call button -->
-          <button
-            @click="handleStartCall"
-            :class="[
-              'px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 border',
-              isCallActive
-                ? 'bg-red-600/80 text-white border-red-500 animate-pulse'
-                : 'bg-emerald-900/30 text-emerald-300 hover:bg-emerald-800/40 border-emerald-500/30'
-            ]"
-            :disabled="isStreaming"
-            :title="isCallActive ? '结束通话' : '语音通话'"
-          >
-            {{ isCallActive ? '⏹' : '📞' }}
-            <span class="hidden sm:inline">{{ isCallActive ? '通话中' : '通话' }}</span>
-          </button>
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="toolbar-button"
+              :class="isListening ? 'toolbar-button-danger' : ''"
+              :disabled="isCallActive || isStreaming"
+              :title="isListening ? '停止语音输入' : '语音输入'"
+              @click="handleMic"
+            >
+              <span>{{ isListening ? '■' : '🎙' }}</span>
+              <span>{{ isListening ? '聆听中' : '语音' }}</span>
+            </button>
 
-          <!-- Stop Speaking -->
-          <button
-            v-if="isSpeaking"
-            @click="stopSpeaking"
-            class="px-3 py-2 rounded-lg text-xs font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/30 transition-all flex items-center gap-1.5"
-          >
-            🔇 停止朗读
+            <button
+              class="toolbar-button"
+              :class="isCallActive ? 'toolbar-button-danger' : 'toolbar-button-success'"
+              :disabled="isStreaming"
+              :title="isCallActive ? '结束语音通话' : '语音通话'"
+              @click="toggleCall"
+            >
+              <span>{{ isCallActive ? '■' : '☎' }}</span>
+              <span>{{ isCallActive ? '通话中' : '通话' }}</span>
+            </button>
+
+            <button
+              v-if="isSpeaking"
+              class="toolbar-button"
+              title="停止朗读"
+              @click="stopSpeaking"
+            >
+              <span>🔇</span>
+              <span>停止朗读</span>
+            </button>
+          </div>
+
+          <button class="primary-action" :disabled="!canSend" @click="submitPrompt()">
+            <span v-if="isStreaming" class="inline-block animate-spin">◌</span>
+            <span v-else>→</span>
+            <span>{{ isStreaming ? '分析中' : '开始分析' }}</span>
           </button>
         </div>
+      </div>
+    </div>
 
-        <!-- Send button -->
+    <div class="glass p-4">
+      <div class="mb-3 flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-slate-100">示例场景</h3>
+        <span class="text-xs text-slate-500">点击填入</span>
+      </div>
+      <div class="space-y-2">
         <button
-          @click="handleSend"
-          :disabled="!canSend"
-          class="px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2
-                 bg-gradient-to-r from-blue-600 to-blue-500 text-white
-                 hover:from-blue-500 hover:to-blue-400
-                 disabled:from-slate-600 disabled:to-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed
-                 shadow-lg shadow-blue-500/20"
+          v-for="sample in samplePrompts"
+          :key="sample"
+          class="sample-button"
+          type="button"
+          @click="prompt = sample"
         >
-          <span v-if="isStreaming" class="animate-spin">⟳</span>
-          <span v-else>→</span>
-          {{ isStreaming ? '分析中' : '发送' }}
+          {{ sample }}
         </button>
       </div>
     </div>
 
-    <!-- SSE Progress -->
-    <div v-if="isStreaming" class="glass p-4 animate-in">
+    <div v-if="isStreaming" class="glass p-4">
+      <h3 class="mb-3 text-sm font-semibold text-slate-100">分析进度</h3>
       <div class="space-y-2">
         <div v-for="step in steps" :key="step.name" class="flex items-center gap-3">
-          <span :class="['text-xs font-bold w-5 text-center', stepIconColors[step.status]]">
+          <span :class="['w-5 text-center text-xs font-bold', stepIconColors[step.status]]">
             {{ stepIcons[step.status] }}
           </span>
-          <span :class="[
-            'text-xs transition-colors',
-            step.status === 'active' ? 'text-blue-300' :
-            step.status === 'done' ? 'text-green-300' :
-            step.status === 'error' ? 'text-red-300' :
-            'text-slate-500'
-          ]">{{ step.message }}</span>
+          <span class="text-xs" :class="step.status === 'pending' ? 'text-slate-500' : 'text-slate-300'">
+            {{ step.message }}
+          </span>
         </div>
       </div>
     </div>
 
-    <!-- Error -->
-    <div v-if="error && !isStreaming" class="glass p-3 border-red-500/30 text-red-300 text-xs">
-      ⚠️ {{ error }}
+    <div v-if="error && !isStreaming" class="glass border-rose-400/30 p-3 text-xs text-rose-200">
+      {{ error }}
     </div>
 
-    <!-- Status bar -->
-    <div v-if="statusText" class="text-center text-xs text-slate-500 py-1">
+    <div v-if="statusText" class="rounded border border-white/10 bg-slate-950/60 px-3 py-2 text-center text-xs text-slate-400">
       {{ statusText }}
     </div>
   </div>

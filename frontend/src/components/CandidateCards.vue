@@ -9,69 +9,73 @@ export interface Candidate {
 
 defineProps<{ candidates: Candidate[] }>()
 
-const rankClasses = ['rank-1', 'rank-2', 'rank-3']
-const medals = ['🥇', '🥈', '🥉']
-const rankColors = [
-  'from-amber-500/20 to-amber-600/10 border-amber-500/40',
-  'from-slate-400/15 to-slate-500/10 border-slate-400/30',
-  'from-orange-500/15 to-orange-600/10 border-orange-500/30',
-]
+const rankLabels = ['首选', '备选', '补充']
+const rankClasses = ['candidate-primary', 'candidate-secondary', 'candidate-tertiary']
+
+function shortName(name: string) {
+  return name.replace(/\s*\(.+?\)/g, '').trim()
+}
 </script>
 
 <template>
   <div class="animate-in">
-    <h3 class="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
-      <span>🏆</span> 推荐架构对比
-    </h3>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div
-        v-for="(c, i) in candidates"
-        :key="c.name"
-        :class="['glass glass-hover p-5 border-2', rankClasses[i] || '']"
-      >
-        <div class="flex justify-between items-start mb-3">
-          <h4 class="text-lg font-bold text-slate-100">{{ c.name }}</h4>
-          <span class="text-2xl">{{ medals[i] || '' }}</span>
-        </div>
-        <!-- Score Bar -->
-        <div class="mb-3">
-          <div class="flex justify-between text-xs text-slate-400 mb-1">
-            <span>匹配度</span>
-            <span>{{ (c.match_score * 100).toFixed(0) }}%</span>
-          </div>
-          <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
-            <div
-              class="h-full rounded-full transition-all duration-1000"
-              :class="i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-slate-400' : 'bg-orange-500'"
-              :style="{ width: (c.match_score * 100) + '%' }"
-            />
-          </div>
-        </div>
-        <!-- Note -->
-        <p v-if="c.rule_engine_note" class="text-xs text-amber-400 mb-2">
-          ⚡ {{ c.rule_engine_note }}
-        </p>
-        <!-- Reasons -->
-        <div v-if="c.match_reasons?.length" class="mb-2">
-          <p class="text-xs text-slate-400 mb-1">推荐理由</p>
-          <ul class="space-y-1">
-            <li v-for="(r, j) in c.match_reasons.slice(0, 2)" :key="j"
-                class="text-xs text-slate-300 flex gap-1">
-              <span class="text-green-400 shrink-0">✓</span> {{ r }}
-            </li>
-          </ul>
-        </div>
-        <!-- Risks -->
-        <div v-if="c.risks?.length">
-          <p class="text-xs text-slate-400 mb-1">注意事项</p>
-          <ul class="space-y-1">
-            <li v-for="(r, j) in c.risks.slice(0, 2)" :key="j"
-                class="text-xs text-red-300 flex gap-1">
-              <span class="text-red-400 shrink-0">!</span> {{ r }}
-            </li>
-          </ul>
-        </div>
+    <div class="mb-4 flex items-end justify-between gap-3">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">Candidates</p>
+        <h3 class="mt-1 text-lg font-bold text-white">候选架构对比</h3>
       </div>
+      <span class="text-xs text-slate-500">按综合匹配度排序</span>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <article
+        v-for="(candidate, index) in candidates.slice(0, 3)"
+        :key="candidate.name"
+        class="candidate-card glass"
+        :class="rankClasses[index]"
+      >
+        <div class="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <span class="rank-chip">{{ rankLabels[index] || `候选 ${index + 1}` }}</span>
+            <h4 class="mt-3 text-base font-bold leading-6 text-white">{{ shortName(candidate.name) }}</h4>
+          </div>
+          <div class="score-bubble">{{ (candidate.match_score * 100).toFixed(0) }}</div>
+        </div>
+
+        <div class="mb-4">
+          <div class="mb-1 flex justify-between text-xs text-slate-400">
+            <span>匹配度</span>
+            <span>{{ (candidate.match_score * 100).toFixed(0) }}%</span>
+          </div>
+          <div class="h-2 overflow-hidden rounded-full bg-slate-800">
+            <div class="h-full rounded-full bg-current transition-all duration-700" :style="{ width: `${candidate.match_score * 100}%` }" />
+          </div>
+        </div>
+
+        <p v-if="candidate.rule_engine_note" class="mb-3 rounded border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">
+          {{ candidate.rule_engine_note }}
+        </p>
+
+        <div v-if="candidate.match_reasons?.length" class="space-y-2">
+          <p class="text-xs font-semibold text-slate-400">推荐理由</p>
+          <ul class="space-y-2">
+            <li v-for="reason in candidate.match_reasons.slice(0, 2)" :key="reason" class="flex gap-2 text-xs leading-5 text-slate-300">
+              <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
+              <span>{{ reason }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="candidate.risks?.length" class="mt-4 space-y-2">
+          <p class="text-xs font-semibold text-slate-400">风险提示</p>
+          <ul class="space-y-2">
+            <li v-for="risk in candidate.risks.slice(0, 2)" :key="risk" class="flex gap-2 text-xs leading-5 text-rose-200">
+              <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-300" />
+              <span>{{ risk }}</span>
+            </li>
+          </ul>
+        </div>
+      </article>
     </div>
   </div>
 </template>

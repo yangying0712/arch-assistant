@@ -2,16 +2,22 @@
 import type { Candidate } from './CandidateCards.vue'
 
 defineProps<{ candidates: Candidate[] }>()
+
+function shortName(name: string) {
+  return name.replace(/\s*\(.+?\)/g, '').trim()
+}
 </script>
 
 <template>
-  <div v-if="candidates.length >= 2" class="glass p-5 animate-in border-purple-500/30"
-       style="background: linear-gradient(135deg, rgba(30,41,59,0.7), rgba(26,16,64,0.7))">
-    <h3 class="text-lg font-bold text-purple-300 mb-3">💡 推荐组合</h3>
-    <p class="text-sm text-slate-300 leading-relaxed">
-      ✨ <b class="text-amber-400">{{ candidates[0].name }}</b> 作为核心架构，
-      配合 <b class="text-sky-400">{{ candidates[1].name }}</b> 处理特定场景。
-      两者优势互补，可显著提升系统整体的可扩展性和灵活性。
-    </p>
-  </div>
+  <section v-if="candidates.length >= 2" class="combo-panel animate-in">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-200">Combination</p>
+      <h3 class="mt-1 text-lg font-bold text-white">推荐组合方案</h3>
+      <p class="mt-3 text-sm leading-7 text-indigo-100/90">
+        以 <b class="text-cyan-100">{{ shortName(candidates[0].name) }}</b> 作为核心架构，
+        搭配 <b class="text-violet-100">{{ shortName(candidates[1].name) }}</b> 处理专项能力。
+        这种组合能兼顾主流程稳定性与局部扩展弹性，适合在答辩中说明架构演进路径。
+      </p>
+    </div>
+  </section>
 </template>
