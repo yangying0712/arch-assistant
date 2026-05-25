@@ -3,66 +3,133 @@ import { computed } from 'vue'
 
 const props = defineProps<{ archName: string }>()
 
-const svgs: Record<string, string> = {
+const commonDefs = `
+  <defs>
+    <marker id="arrow-cyan" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#67e8f9"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#fbbf24"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#34d399"/>
+    </marker>
+    <linearGradient id="panel-blue" x1="0" x2="1">
+      <stop offset="0%" stop-color="#0f2a4a"/>
+      <stop offset="100%" stop-color="#0b3b5f"/>
+    </linearGradient>
+    <linearGradient id="panel-amber" x1="0" x2="1">
+      <stop offset="0%" stop-color="#92400e"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="panel-green" x1="0" x2="1">
+      <stop offset="0%" stop-color="#047857"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#020617" flood-opacity=".38"/>
+    </filter>
+  </defs>
+`
+
+const diagrams: Record<string, string> = {
+  cqrs: `
+    ${commonDefs}
+    <rect x="18" y="18" width="684" height="372" rx="18" fill="#071426" stroke="#1f3b5c"/>
+    <rect x="40" y="42" width="640" height="58" rx="14" fill="#0c1f35" stroke="#274862"/>
+    <text x="64" y="68" fill="#e0f2fe" font-size="15" font-weight="700">CQRS 读写分离拓扑</text>
+    <text x="64" y="88" fill="#8fb3cf" font-size="11">命令侧处理业务一致性，查询侧服务高频读取，中间通过事件投影同步。</text>
+
+    <rect x="64" y="132" width="112" height="46" rx="12" fill="#0e7490" filter="url(#soft-shadow)"/>
+    <text x="120" y="160" text-anchor="middle" fill="#ecfeff" font-size="13" font-weight="700">Client / UI</text>
+
+    <rect x="224" y="122" width="164" height="70" rx="14" fill="url(#panel-amber)" stroke="#f59e0b" filter="url(#soft-shadow)"/>
+    <text x="306" y="148" text-anchor="middle" fill="#fff7ed" font-size="14" font-weight="800">命令处理层</text>
+    <text x="306" y="169" text-anchor="middle" fill="#fde68a" font-size="11">Command Handler / Domain</text>
+
+    <rect x="224" y="236" width="164" height="58" rx="14" fill="#111c31" stroke="#f59e0b" filter="url(#soft-shadow)"/>
+    <text x="306" y="260" text-anchor="middle" fill="#fde68a" font-size="13" font-weight="700">写库</text>
+    <text x="306" y="280" text-anchor="middle" fill="#94a3b8" font-size="11">事务边界 / 审计日志</text>
+
+    <rect x="438" y="122" width="164" height="70" rx="14" fill="url(#panel-green)" stroke="#2dd4bf" filter="url(#soft-shadow)"/>
+    <text x="520" y="148" text-anchor="middle" fill="#ecfdf5" font-size="14" font-weight="800">查询服务层</text>
+    <text x="520" y="169" text-anchor="middle" fill="#a7f3d0" font-size="11">Query API / Read Model</text>
+
+    <rect x="438" y="236" width="164" height="58" rx="14" fill="#111c31" stroke="#2dd4bf" filter="url(#soft-shadow)"/>
+    <text x="520" y="260" text-anchor="middle" fill="#a7f3d0" font-size="13" font-weight="700">读库 / 缓存</text>
+    <text x="520" y="280" text-anchor="middle" fill="#94a3b8" font-size="11">投影表 / 聚合视图</text>
+
+    <rect x="286" y="326" width="236" height="38" rx="19" fill="#312e81" stroke="#818cf8"/>
+    <text x="404" y="350" text-anchor="middle" fill="#ddd6fe" font-size="12" font-weight="700">事件总线：Domain Events / Projection</text>
+
+    <path d="M176 148 C194 142, 204 140, 224 140" fill="none" stroke="#67e8f9" stroke-width="2.2" marker-end="url(#arrow-cyan)"/>
+    <path d="M176 164 C282 215, 392 115, 438 142" fill="none" stroke="#67e8f9" stroke-width="2.2" stroke-dasharray="6 5" marker-end="url(#arrow-cyan)"/>
+    <path d="M306 192 L306 236" fill="none" stroke="#fbbf24" stroke-width="2.2" marker-end="url(#arrow-amber)"/>
+    <path d="M520 192 L520 236" fill="none" stroke="#34d399" stroke-width="2.2" marker-end="url(#arrow-green)"/>
+    <path d="M388 265 C418 284, 438 285, 438 265" fill="none" stroke="#fbbf24" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrow-amber)"/>
+    <path d="M306 294 C310 330, 340 344, 286 345" fill="none" stroke="#fbbf24" stroke-width="1.8" marker-end="url(#arrow-amber)"/>
+    <path d="M522 326 C550 313, 560 296, 546 294" fill="none" stroke="#34d399" stroke-width="1.8" marker-end="url(#arrow-green)"/>
+
+    <rect x="64" y="314" width="154" height="50" rx="12" fill="#0f172a" stroke="#334155"/>
+    <text x="141" y="336" text-anchor="middle" fill="#cbd5e1" font-size="12" font-weight="700">监控与治理</text>
+    <text x="141" y="354" text-anchor="middle" fill="#64748b" font-size="10">Trace / Retry / Idempotency</text>
+  `,
   microservices: `
-    <rect x="135" y="16" width="110" height="32" rx="6" fill="#0891b2"/><text x="190" y="37" text-anchor="middle" fill="#ecfeff" font-size="12">API Gateway</text>
-    <rect x="18" y="88" width="78" height="42" rx="6" fill="#0e7490"/><text x="57" y="113" text-anchor="middle" fill="#fff" font-size="11">商品服务</text>
-    <rect x="112" y="88" width="78" height="42" rx="6" fill="#0e7490"/><text x="151" y="113" text-anchor="middle" fill="#fff" font-size="11">订单服务</text>
-    <rect x="206" y="88" width="78" height="42" rx="6" fill="#0e7490"/><text x="245" y="113" text-anchor="middle" fill="#fff" font-size="11">支付服务</text>
-    <rect x="300" y="88" width="62" height="42" rx="6" fill="#0e7490"/><text x="331" y="113" text-anchor="middle" fill="#fff" font-size="11">用户</text>
-    <line x1="190" y1="48" x2="57" y2="88" stroke="#67e8f9" stroke-width="1.5"/><line x1="190" y1="48" x2="151" y2="88" stroke="#67e8f9" stroke-width="1.5"/><line x1="190" y1="48" x2="245" y2="88" stroke="#67e8f9" stroke-width="1.5"/><line x1="190" y1="48" x2="331" y2="88" stroke="#67e8f9" stroke-width="1.5"/>
-    <rect x="42" y="172" width="296" height="36" rx="6" fill="#0f172a" stroke="#334155"/><text x="190" y="195" text-anchor="middle" fill="#cbd5e1" font-size="11">服务发现 · 容器编排 · 分布式追踪</text>
+    ${commonDefs}
+    <rect x="18" y="18" width="684" height="312" rx="18" fill="#071426" stroke="#1f3b5c"/>
+    <rect x="292" y="40" width="136" height="44" rx="12" fill="#0891b2" filter="url(#soft-shadow)"/>
+    <text x="360" y="67" text-anchor="middle" fill="#ecfeff" font-size="14" font-weight="800">API Gateway</text>
+    <g fill="#0e7490" filter="url(#soft-shadow)">
+      <rect x="72" y="136" width="120" height="58" rx="14"/>
+      <rect x="224" y="136" width="120" height="58" rx="14"/>
+      <rect x="376" y="136" width="120" height="58" rx="14"/>
+      <rect x="528" y="136" width="120" height="58" rx="14"/>
+    </g>
+    <text x="132" y="170" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">商品服务</text>
+    <text x="284" y="170" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">订单服务</text>
+    <text x="436" y="170" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">支付服务</text>
+    <text x="588" y="170" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">用户服务</text>
+    <path d="M360 84 L132 136 M360 84 L284 136 M360 84 L436 136 M360 84 L588 136" stroke="#67e8f9" stroke-width="2" marker-end="url(#arrow-cyan)"/>
+    <rect x="108" y="238" width="504" height="48" rx="14" fill="#0f172a" stroke="#334155"/>
+    <text x="360" y="267" text-anchor="middle" fill="#cbd5e1" font-size="12">服务发现 · 配置中心 · 容器编排 · 分布式追踪</text>
   `,
   event: `
-    <rect x="120" y="24" width="140" height="34" rx="8" fill="#7c3aed"/><text x="190" y="46" text-anchor="middle" fill="#fff" font-size="12">事件总线 / MQ</text>
-    <rect x="28" y="98" width="86" height="38" rx="6" fill="#8b5cf6"/><text x="71" y="121" text-anchor="middle" fill="#fff" font-size="11">生产者</text>
-    <rect x="145" y="98" width="86" height="38" rx="6" fill="#8b5cf6"/><text x="188" y="121" text-anchor="middle" fill="#fff" font-size="11">事件处理</text>
-    <rect x="264" y="98" width="86" height="38" rx="6" fill="#6d28d9"/><text x="307" y="121" text-anchor="middle" fill="#fff" font-size="11">消费者</text>
-    <line x1="71" y1="98" x2="160" y2="58" stroke="#c4b5fd" stroke-width="1.5"/><line x1="188" y1="98" x2="190" y2="58" stroke="#c4b5fd" stroke-width="1.5"/><line x1="307" y1="98" x2="220" y2="58" stroke="#c4b5fd" stroke-width="1.5"/>
-  `,
-  pipe: `
-    <rect x="20" y="105" width="56" height="38" rx="6" fill="#0891b2"/><text x="48" y="129" text-anchor="middle" fill="#fff" font-size="11">输入</text>
-    <rect x="94" y="105" width="64" height="38" rx="6" fill="#0e7490"/><text x="126" y="129" text-anchor="middle" fill="#fff" font-size="11">过滤器</text>
-    <rect x="176" y="105" width="64" height="38" rx="6" fill="#0e7490"/><text x="208" y="129" text-anchor="middle" fill="#fff" font-size="11">转换</text>
-    <rect x="258" y="105" width="64" height="38" rx="6" fill="#0e7490"/><text x="290" y="129" text-anchor="middle" fill="#fff" font-size="11">审核</text>
-    <rect x="340" y="105" width="40" height="38" rx="6" fill="#0891b2"/><text x="360" y="129" text-anchor="middle" fill="#fff" font-size="11">输出</text>
-    <line x1="76" y1="124" x2="94" y2="124" stroke="#67e8f9" stroke-width="2"/><line x1="158" y1="124" x2="176" y2="124" stroke="#67e8f9" stroke-width="2"/><line x1="240" y1="124" x2="258" y2="124" stroke="#67e8f9" stroke-width="2"/><line x1="322" y1="124" x2="340" y2="124" stroke="#67e8f9" stroke-width="2"/>
-  `,
-  cqrs: `
-    <rect x="132" y="18" width="116" height="32" rx="6" fill="#d97706"/><text x="190" y="39" text-anchor="middle" fill="#fff" font-size="12">命令 / 查询分离</text>
-    <rect x="28" y="88" width="124" height="50" rx="8" fill="#f59e0b"/><text x="90" y="118" text-anchor="middle" fill="#111827" font-size="12">写模型</text>
-    <rect x="228" y="88" width="124" height="50" rx="8" fill="#10b981"/><text x="290" y="118" text-anchor="middle" fill="#052e16" font-size="12">读模型</text>
-    <rect x="36" y="166" width="108" height="34" rx="6" fill="#0f172a" stroke="#475569"/><text x="90" y="187" text-anchor="middle" fill="#cbd5e1" font-size="11">Write DB</text>
-    <rect x="236" y="166" width="108" height="34" rx="6" fill="#0f172a" stroke="#475569"/><text x="290" y="187" text-anchor="middle" fill="#cbd5e1" font-size="11">Read DB</text>
-    <line x1="90" y1="138" x2="90" y2="166" stroke="#fbbf24"/><line x1="290" y1="138" x2="290" y2="166" stroke="#34d399"/><line x1="144" y1="183" x2="236" y2="183" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5"/>
-  `,
-  hexagonal: `
-    <polygon points="190,35 258,76 258,148 190,190 122,148 122,76" fill="rgba(34,197,94,.16)" stroke="#22c55e" stroke-width="2"/>
-    <text x="190" y="116" text-anchor="middle" fill="#86efac" font-size="13" font-weight="700">核心领域</text>
-    <rect x="42" y="36" width="74" height="30" rx="5" fill="#2563eb"/><text x="79" y="55" text-anchor="middle" fill="#fff" font-size="10">DB 适配器</text>
-    <rect x="268" y="36" width="74" height="30" rx="5" fill="#2563eb"/><text x="305" y="55" text-anchor="middle" fill="#fff" font-size="10">API 适配器</text>
-    <rect x="42" y="178" width="74" height="30" rx="5" fill="#2563eb"/><text x="79" y="197" text-anchor="middle" fill="#fff" font-size="10">UI 适配器</text>
-    <rect x="268" y="178" width="74" height="30" rx="5" fill="#2563eb"/><text x="305" y="197" text-anchor="middle" fill="#fff" font-size="10">MQ 适配器</text>
+    ${commonDefs}
+    <rect x="18" y="18" width="684" height="312" rx="18" fill="#071426" stroke="#1f3b5c"/>
+    <rect x="250" y="128" width="220" height="56" rx="18" fill="#6d28d9" stroke="#a78bfa" filter="url(#soft-shadow)"/>
+    <text x="360" y="162" text-anchor="middle" fill="#fff" font-size="15" font-weight="800">事件总线 / Message Broker</text>
+    <rect x="66" y="78" width="128" height="50" rx="14" fill="#7c3aed" filter="url(#soft-shadow)"/>
+    <text x="130" y="108" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">事件生产者</text>
+    <rect x="66" y="202" width="128" height="50" rx="14" fill="#7c3aed" filter="url(#soft-shadow)"/>
+    <text x="130" y="232" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">业务服务</text>
+    <rect x="526" y="78" width="128" height="50" rx="14" fill="#4f46e5" filter="url(#soft-shadow)"/>
+    <text x="590" y="108" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">订阅者 A</text>
+    <rect x="526" y="202" width="128" height="50" rx="14" fill="#4f46e5" filter="url(#soft-shadow)"/>
+    <text x="590" y="232" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">订阅者 B</text>
+    <path d="M194 103 C235 120, 240 136, 250 145 M194 227 C235 205, 238 186, 250 171 M470 145 C500 130, 502 116, 526 103 M470 171 C506 190, 506 212, 526 227" fill="none" stroke="#c4b5fd" stroke-width="2" marker-end="url(#arrow-cyan)"/>
   `,
   default: `
-    <rect x="42" y="48" width="296" height="48" rx="8" fill="#0891b2"/><text x="190" y="78" text-anchor="middle" fill="#fff" font-size="13">架构核心组件</text>
-    <rect x="64" y="134" width="96" height="40" rx="6" fill="#0f172a" stroke="#334155"/><text x="112" y="158" text-anchor="middle" fill="#cbd5e1" font-size="11">接口层</text>
-    <rect x="220" y="134" width="96" height="40" rx="6" fill="#0f172a" stroke="#334155"/><text x="268" y="158" text-anchor="middle" fill="#cbd5e1" font-size="11">数据层</text>
-    <line x1="160" y1="154" x2="220" y2="154" stroke="#67e8f9" stroke-width="1.5"/>
+    ${commonDefs}
+    <rect x="18" y="18" width="684" height="292" rx="18" fill="#071426" stroke="#1f3b5c"/>
+    <rect x="76" y="62" width="568" height="56" rx="16" fill="#0e7490" filter="url(#soft-shadow)"/>
+    <text x="360" y="96" text-anchor="middle" fill="#fff" font-size="15" font-weight="800">架构核心组件</text>
+    <rect x="110" y="178" width="180" height="58" rx="14" fill="#0f172a" stroke="#334155"/>
+    <text x="200" y="212" text-anchor="middle" fill="#cbd5e1" font-size="13" font-weight="700">接口层</text>
+    <rect x="430" y="178" width="180" height="58" rx="14" fill="#0f172a" stroke="#334155"/>
+    <text x="520" y="212" text-anchor="middle" fill="#cbd5e1" font-size="13" font-weight="700">数据层</text>
+    <path d="M290 207 L430 207" stroke="#67e8f9" stroke-width="2" marker-end="url(#arrow-cyan)"/>
   `,
 }
 
 function pickKey(name: string) {
-  const n = name.toLowerCase()
-  if (n.includes('microservice') || n.includes('微服务')) return 'microservices'
-  if (n.includes('event') || n.includes('事件')) return 'event'
-  if (n.includes('pipe') || n.includes('管道')) return 'pipe'
-  if (n.includes('cqrs')) return 'cqrs'
-  if (n.includes('hexagonal') || n.includes('六边形')) return 'hexagonal'
+  const normalized = name.toLowerCase()
+  if (normalized.includes('cqrs')) return 'cqrs'
+  if (normalized.includes('microservice') || name.includes('微服务')) return 'microservices'
+  if (normalized.includes('event') || name.includes('事件')) return 'event'
   return 'default'
 }
 
-const selectedSVG = computed(() => svgs[pickKey(props.archName)] ?? svgs.default)
+const selectedSVG = computed(() => diagrams[pickKey(props.archName)] ?? diagrams.default)
 </script>
 
 <template>
@@ -73,7 +140,7 @@ const selectedSVG = computed(() => svgs[pickKey(props.archName)] ?? svgs.default
       <p class="mt-1 text-xs text-slate-400">{{ archName }}</p>
     </div>
     <div class="overflow-hidden rounded-lg border border-white/10 bg-slate-950/60">
-      <svg viewBox="0 0 380 240" class="h-auto w-full" v-html="selectedSVG" />
+      <svg viewBox="0 0 720 410" class="h-auto w-full topology-svg" v-html="selectedSVG" />
     </div>
   </section>
 </template>

@@ -230,6 +230,7 @@ textarea {
 .md-content h4 {
   color: #e0f2fe;
   font-weight: 800;
+  line-height: 1.35;
 }
 
 .md-content h2 {
@@ -245,6 +246,12 @@ textarea {
 
 .md-content strong {
   color: #fff;
+}
+
+.md-content p {
+  margin: 10px 0;
+  color: #cbd5e1;
+  line-height: 1.85;
 }
 
 .md-content ul {
@@ -264,12 +271,55 @@ textarea {
   padding: 12px;
 }
 
+.md-content hr {
+  margin: 18px 0;
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
 .md-content code {
   border-radius: 4px;
   background: rgba(15, 23, 42, 0.9);
   padding: 2px 5px;
   color: #bae6fd;
   font-size: 0.82rem;
+}
+
+.report-content {
+  overflow-wrap: anywhere;
+}
+
+.report-table-wrap {
+  margin: 14px 0;
+  overflow-x: auto;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+}
+
+.report-table-wrap table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.report-table-wrap th,
+.report-table-wrap td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.65;
+}
+
+.report-table-wrap th {
+  background: rgba(14, 116, 144, 0.2);
+  color: #e0f2fe;
+  font-weight: 800;
+}
+
+.report-table-wrap tr:last-child td {
+  border-bottom: 0;
 }
 
 @keyframes fadeInUp {
