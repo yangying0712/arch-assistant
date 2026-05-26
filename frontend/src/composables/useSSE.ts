@@ -55,28 +55,26 @@ export function useSSE() {
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+        const frames = buffer.split('\n\n')
+        buffer = frames.pop() || ''
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
+        for (const frame of frames) {
+          const line = frame.split('\n').find(item => item.startsWith('data: '))
+          if (!line) continue
           try {
             const data = JSON.parse(line.slice(6))
             switch (data.event) {
               case 'features':
-                updateStep('features', 'active')
-                result.features = data.data
                 updateStep('features', 'done')
+                result.features = data.data
                 break
               case 'candidates':
-                updateStep('candidates', 'active')
-                result.candidates = data.data
                 updateStep('candidates', 'done')
+                result.candidates = data.data
                 break
               case 'report':
-                updateStep('report', 'active')
-                result.report = data.data
                 updateStep('report', 'done')
+                result.report = data.data
                 break
               case 'done':
                 updateStep('done', 'done')
@@ -87,7 +85,7 @@ export function useSSE() {
                 break
             }
           } catch {
-            // Ignore partial frames.
+            // Ignore malformed partial frames.
           }
         }
       }

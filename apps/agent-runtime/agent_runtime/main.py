@@ -97,6 +97,7 @@ async def run_task(request: RunTaskRequest):
 async def run_task_stream(request: RunTaskRequest):
     """SSE 流式返回 Agent 执行进度"""
     async def event_stream():
+        case_context = _build_case_context(request.prompt)
         state: AgentState = {
             "messages": [],
             "user_requirement": request.prompt,
@@ -106,13 +107,14 @@ async def run_task_stream(request: RunTaskRequest):
             "evaluation_report": "",
             "current_stage": "init",
             "next_step": "",
+            "case_context": case_context,
         }
         
         yield f"data: {json.dumps({'event': 'status', 'message': '🔍 正在分析需求...'})}\n\n"
         
         # Stream through graph steps manually
         try:
-            for event in agent_graph.stream(state):
+            async for event in agent_graph.astream(state):
                 node_name = list(event.keys())[0] if event else "unknown"
                 node_data = event.get(node_name, {})
                 stage = node_data.get("current_stage", "")
@@ -124,10 +126,10 @@ async def run_task_stream(request: RunTaskRequest):
                     cands = node_data.get("candidate_styles", [])
                     yield f"data: {json.dumps({'event': 'candidates', 'data': cands})}\n\n"
                 elif "evaluation" in stage:
-                    yield f"data: {json.dumps({'event': 'status', 'message': '📊 正在生成评估报告...'})}\n\n"
-            
-            final = agent_graph.get_state(agent_graph.get_state_config(config={}))
-            yield f"data: {json.dumps({'event': 'done', 'report': '评估完成'})}\n\n"
+                    report = node_data.get("evaluation_report", "")
+                    yield f"data: {json.dumps({'event': 'report', 'data': report})}\n\n"
+
+            yield f"data: {json.dumps({'event': 'done'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
     

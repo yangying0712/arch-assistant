@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { Candidate } from './CandidateCards.vue'
 
 const props = defineProps<{ candidates: Candidate[] }>()
@@ -85,7 +85,7 @@ function draw() {
       index === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
     })
     ctx.closePath()
-    ctx.strokeStyle = level === levels ? 'rgba(148, 163, 184, .35)' : 'rgba(71, 85, 105, .32)'
+    ctx.strokeStyle = level === levels ? 'rgba(148, 163, 184, .38)' : 'rgba(71, 85, 105, .30)'
     ctx.lineWidth = 1
     ctx.stroke()
   }
@@ -98,7 +98,7 @@ function draw() {
     ctx.strokeStyle = 'rgba(71, 85, 105, .28)'
     ctx.stroke()
 
-    ctx.fillStyle = '#cbd5e1'
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-soft') || '#cbd5e1'
     ctx.font = '12px Microsoft YaHei, system-ui, sans-serif'
     ctx.textAlign = 'center'
     const labelRadius = radius + 24
@@ -129,6 +129,7 @@ onMounted(() => {
   window.addEventListener('resize', draw)
 })
 
+onUnmounted(() => window.removeEventListener('resize', draw))
 watch(() => props.candidates, () => nextTick(draw), { deep: true })
 </script>
 

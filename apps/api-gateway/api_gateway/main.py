@@ -63,7 +63,7 @@ async def analyze_stream(req: AnalyzeRequest):
                                   json=req.model_dump(), timeout=180.0) as r:
             async for line in r.aiter_lines():
                 if line:
-                    yield line + "\n"
+                    yield line + "\n\n"
     return StreamingResponse(proxy(), media_type="text/event-stream")
 
 @app.get("/")

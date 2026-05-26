@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useSpeech } from '../composables/useSpeech'
-import { useSSE, type SSEStep } from '../composables/useSSE'
+
+defineProps<{ isBusy?: boolean }>()
 
 const emit = defineEmits<{
   submit: [prompt: string, sessionId: string]
@@ -9,8 +10,6 @@ const emit = defineEmits<{
 }>()
 
 const { isListening, isCallActive, isSpeaking, statusText, startMic, stopMic, startCall, stopCall, stopSpeaking } = useSpeech()
-const { steps, isStreaming, error } = useSSE()
-
 const prompt = ref('')
 
 const samplePrompts = [
@@ -19,11 +18,11 @@ const samplePrompts = [
   '开发在线视频处理平台，用户上传视频后需要经过转码、加水印、生成缩略图、内容审核等一系列处理步骤。',
 ]
 
-const canSend = computed(() => prompt.value.trim().length > 0 && !isStreaming.value)
+const canSend = computed(() => prompt.value.trim().length > 0)
 
 function submitPrompt(text = prompt.value) {
   const value = text.trim()
-  if (!value || isStreaming.value) return
+  if (!value) return
   prompt.value = ''
   emit('submit', value, crypto.randomUUID())
 }
@@ -50,22 +49,8 @@ async function handleMic() {
     prompt.value = text
     submitPrompt(text)
   } catch {
-    // The user cancelled or the browser denied speech recognition.
+    // Browser speech recognition can be cancelled or denied by the user.
   }
-}
-
-const stepIcons: Record<SSEStep['status'], string> = {
-  pending: '○',
-  active: '●',
-  done: '✓',
-  error: '!',
-}
-
-const stepIconColors: Record<SSEStep['status'], string> = {
-  pending: 'text-slate-600',
-  active: 'text-cyan-300',
-  done: 'text-emerald-300',
-  error: 'text-rose-300',
 }
 </script>
 
@@ -83,7 +68,7 @@ const stepIconColors: Record<SSEStep['status'], string> = {
           v-model="prompt"
           class="h-36 w-full resize-none rounded-lg border border-white/10 bg-slate-950/70 p-4 text-sm leading-6 text-slate-100 placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-400/10"
           placeholder="例如：开发一个跨平台即时通讯系统，支持万人同时在线，要求消息实时可靠，后期需要快速扩展视频通话能力。"
-          :disabled="isStreaming"
+          :disabled="isBusy"
           @keydown.enter.exact.prevent="submitPrompt()"
         />
 
@@ -92,7 +77,7 @@ const stepIconColors: Record<SSEStep['status'], string> = {
             <button
               class="toolbar-button"
               :class="isListening ? 'toolbar-button-danger' : ''"
-              :disabled="isCallActive || isStreaming"
+              :disabled="isCallActive || isBusy"
               :title="isListening ? '停止语音输入' : '语音输入'"
               @click="handleMic"
             >
@@ -103,7 +88,7 @@ const stepIconColors: Record<SSEStep['status'], string> = {
             <button
               class="toolbar-button"
               :class="isCallActive ? 'toolbar-button-danger' : 'toolbar-button-success'"
-              :disabled="isStreaming"
+              :disabled="isBusy"
               :title="isCallActive ? '结束语音通话' : '语音通话'"
               @click="toggleCall"
             >
@@ -117,15 +102,15 @@ const stepIconColors: Record<SSEStep['status'], string> = {
               title="停止朗读"
               @click="stopSpeaking"
             >
-              <span>🔇</span>
+              <span>↯</span>
               <span>停止朗读</span>
             </button>
           </div>
 
-          <button class="primary-action" :disabled="!canSend" @click="submitPrompt()">
-            <span v-if="isStreaming" class="inline-block animate-spin">◌</span>
+          <button class="primary-action" :disabled="!canSend || isBusy" @click="submitPrompt()">
+            <span v-if="isBusy" class="inline-block animate-spin">◌</span>
             <span v-else>→</span>
-            <span>{{ isStreaming ? '分析中' : '开始分析' }}</span>
+            <span>{{ isBusy ? '分析中' : '开始分析' }}</span>
           </button>
         </div>
       </div>
@@ -147,24 +132,6 @@ const stepIconColors: Record<SSEStep['status'], string> = {
           {{ sample }}
         </button>
       </div>
-    </div>
-
-    <div v-if="isStreaming" class="glass p-4">
-      <h3 class="mb-3 text-sm font-semibold text-slate-100">分析进度</h3>
-      <div class="space-y-2">
-        <div v-for="step in steps" :key="step.name" class="flex items-center gap-3">
-          <span :class="['w-5 text-center text-xs font-bold', stepIconColors[step.status]]">
-            {{ stepIcons[step.status] }}
-          </span>
-          <span class="text-xs" :class="step.status === 'pending' ? 'text-slate-500' : 'text-slate-300'">
-            {{ step.message }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="error && !isStreaming" class="glass border-rose-400/30 p-3 text-xs text-rose-200">
-      {{ error }}
     </div>
 
     <div v-if="statusText" class="rounded border border-white/10 bg-slate-950/60 px-3 py-2 text-center text-xs text-slate-400">

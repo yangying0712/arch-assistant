@@ -35,7 +35,7 @@ function renderMarkdown(text: string): string {
 
   const normalized = text
     .replace(/\r\n/g, '\n')
-    .replace(/^好的，.*?报告。\s*/s, '')
+    .replace(/^好的[，,].{0,160}?报告[。.]?\s*/s, '')
     .replace(/\n{3,}/g, '\n\n')
 
   const lines = normalized.split('\n')
@@ -90,7 +90,7 @@ function renderMarkdown(text: string): string {
       continue
     }
 
-    if (/^[一二三四五六七八九十]+[、.．]\s*/.test(line)) {
+    if (/^([一二三四五六七八九十]+|[IVX]+|\d+)[、.．]\s*\S+/.test(line)) {
       flushList()
       output.push(`<h3>${inlineMarkdown(line)}</h3>`)
       continue

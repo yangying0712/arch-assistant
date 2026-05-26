@@ -47,7 +47,7 @@ function shortName(name: string) {
             <span>匹配度</span>
             <span>{{ (candidate.match_score * 100).toFixed(0) }}%</span>
           </div>
-          <div class="h-2 overflow-hidden rounded-full bg-slate-800">
+          <div class="h-2 overflow-hidden rounded-full bg-slate-800/70">
             <div class="h-full rounded-full bg-current transition-all duration-700" :style="{ width: `${candidate.match_score * 100}%` }" />
           </div>
         </div>
