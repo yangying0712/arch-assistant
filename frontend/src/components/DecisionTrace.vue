@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import type { Candidate } from './CandidateCards.vue'
 
-defineProps<{ candidates: Candidate[] }>()
+interface CaseMatch {
+  prompt: string
+  matched_terms?: string[]
+  recommendations?: string[]
+  score?: number
+  count?: number
+}
+
+defineProps<{ candidates: Candidate[]; caseMatches?: CaseMatch[] }>()
 </script>
 
 <template>
@@ -26,6 +34,15 @@ defineProps<{ candidates: Candidate[] }>()
         <span class="text-sm leading-6 text-rose-100">
           备选方案 <b>{{ candidates[1].name }}</b> 的主要风险：
           {{ candidates[1].risks.slice(0, 2).join('；') }}
+        </span>
+      </div>
+
+      <div v-if="caseMatches?.length" class="trace-row">
+        <span class="trace-index">K</span>
+        <span class="text-sm leading-6 text-slate-300">
+          相似案例参考：
+          {{ caseMatches[0].prompt }}
+          <b v-if="caseMatches[0].recommendations?.length"> → {{ caseMatches[0].recommendations.join(' / ') }}</b>
         </span>
       </div>
     </div>

@@ -14,8 +14,17 @@ interface AnalyzeResult {
   features: Record<string, any> | null
   candidates: Candidate[]
   topology: RequirementTopology | null
+  case_matches: CaseMatch[]
   report: string | null
   cached?: boolean
+}
+
+interface CaseMatch {
+  prompt: string
+  matched_terms?: string[]
+  recommendations?: string[]
+  score?: number
+  count?: number
 }
 
 const theme = ref<'dark' | 'light'>('dark')
@@ -23,6 +32,7 @@ const result = ref<AnalyzeResult>({
   features: null,
   candidates: [],
   topology: null,
+  case_matches: [],
   report: null,
 })
 const isAnalyzing = ref(false)
@@ -53,6 +63,7 @@ function emptyResult(): AnalyzeResult {
     features: null,
     candidates: [],
     topology: null,
+    case_matches: [],
     report: null,
     cached: false,
   }
@@ -91,6 +102,11 @@ function applyStreamEvent(data: any) {
   if (data.event === 'features') {
     result.value = { ...result.value, features: data.data || null }
     statusMessage.value = '已提取需求特征，继续匹配候选架构...'
+    return
+  }
+
+  if (data.event === 'case_matches') {
+    result.value = { ...result.value, case_matches: Array.isArray(data.data) ? data.data : [] }
     return
   }
 
@@ -161,6 +177,7 @@ async function analyzeWithFallback(prompt: string, sessionId: string) {
     features: data.features || null,
     candidates: normalizeCandidates(data.candidates),
     topology: data.topology || null,
+    case_matches: Array.isArray(data.case_matches) ? data.case_matches : [],
     report: '',
     cached: data.cached,
   }
@@ -256,7 +273,7 @@ onBeforeUnmount(stopReportTyping)
           <RadarChart :candidates="result.candidates" />
           <TopologyDiagram :arch-name="topArchName" :topology="result.topology" />
         </div>
-        <DecisionTrace v-if="result.candidates.length" :candidates="result.candidates" />
+        <DecisionTrace v-if="result.candidates.length" :candidates="result.candidates" :case-matches="result.case_matches" />
         <ComboRec v-if="result.candidates.length >= 2" :candidates="result.candidates" />
         <ReportPanel v-if="result.report" :report="result.report" />
         <div v-if="errorMessage && !result.report" class="glass border-rose-400/30 p-4 text-sm text-rose-200">
