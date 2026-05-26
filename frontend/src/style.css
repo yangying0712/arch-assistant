@@ -81,6 +81,16 @@ textarea {
   background: rgba(255, 255, 255, 0.62);
 }
 
+.theme-light .app-header-shell {
+  box-shadow: none;
+}
+
+.theme-light .app-main-surface {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .theme-light .text-white,
 .theme-light .text-slate-100 {
   color: var(--text-main) !important;
