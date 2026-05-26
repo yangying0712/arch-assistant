@@ -8,6 +8,7 @@
 知识库支持: Neo4j 图数据库 (优先) + JSON 文件 (fallback)
 """
 import json, re, os
+from datetime import date
 from typing import TypedDict, Annotated, Literal
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -613,7 +614,11 @@ EVALUATION_PROMPT = """你是一个软件架构评估专家。基于候选架构
 用户需求：
 {requirement}
 
+Report date:
+{report_date}
+
 请生成一份专业评估报告，需包含以下部分（用中文）：
+If the report includes a report date or evaluation date, use the exact Report date above. Do not invent or reuse example dates.
 
 ## 一、多维度对比分析
 从 可扩展性、性能、实现复杂度、部署难度、团队要求 五个维度对比各候选架构。
@@ -638,10 +643,12 @@ async def evaluation(state: AgentState) -> AgentState:
     validated = rule_engine_validate(state["candidate_styles"], state["extracted_features"], state["user_requirement"])
     state["candidate_styles"] = validated
     
+    today = date.today()
     messages = [
         SystemMessage(content=EVALUATION_PROMPT.format(
             candidates=json.dumps(validated, ensure_ascii=False, indent=2),
-            requirement=state["user_requirement"]
+            requirement=state["user_requirement"],
+            report_date=today.isoformat(),
         )),
         HumanMessage(content="请生成架构评估与推荐报告。"),
     ]

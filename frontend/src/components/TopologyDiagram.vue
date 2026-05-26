@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 export interface TopologyNode {
   id: string
@@ -27,6 +27,8 @@ export interface RequirementTopology {
 }
 
 const props = defineProps<{ archName: string; topology?: RequirementTopology | null }>()
+const isExpanded = ref(false)
+const diagramFrame = ref<HTMLElement | null>(null)
 
 const hasDynamicTopology = computed(() => Boolean(props.topology?.nodes?.length))
 const dynamicNodeMap = computed(() => new Map((props.topology?.nodes || []).map(node => [node.id, node])))
@@ -299,6 +301,33 @@ function pickKey(name: string) {
 }
 
 const selectedSVG = computed(() => diagrams[pickKey(props.archName)] ?? diagrams.default)
+
+async function openExpanded() {
+  isExpanded.value = true
+  await diagramFrame.value?.requestFullscreen?.()
+}
+
+function closeExpanded() {
+  isExpanded.value = false
+  if (document.fullscreenElement) {
+    void document.exitFullscreen()
+  }
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') closeExpanded()
+}
+
+function handleFullscreenChange() {
+  isExpanded.value = document.fullscreenElement === diagramFrame.value
+}
+
+onMounted(() => window.addEventListener('keydown', handleKeydown))
+onMounted(() => document.addEventListener('fullscreenchange', handleFullscreenChange))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
+})
 </script>
 
 <template>
@@ -308,7 +337,21 @@ const selectedSVG = computed(() => diagrams[pickKey(props.archName)] ?? diagrams
       <h3 class="mt-1 text-lg font-bold text-white">{{ topology?.title || '架构拓扑图' }}</h3>
       <p class="mt-1 text-xs text-slate-400">{{ archName }}</p>
     </div>
-    <div class="diagram-frame overflow-hidden rounded-lg border border-white/10 bg-slate-950/50">
+    <div
+      ref="diagramFrame"
+      class="diagram-frame topology-click-target overflow-hidden rounded-lg border border-white/10 bg-slate-950/50"
+      :class="{ 'topology-expanded': isExpanded }"
+      role="button"
+      tabindex="0"
+      :aria-label="isExpanded ? '关闭架构拓扑大图' : '查看架构拓扑大图'"
+      @click="!isExpanded && openExpanded()"
+      @keydown.enter.prevent="openExpanded"
+      @keydown.space.prevent="openExpanded"
+    >
+      <div v-if="!isExpanded" class="topology-expand-hint">点击查看大图</div>
+      <button v-if="isExpanded" class="topology-close-button" type="button" aria-label="关闭大图" @click.stop="closeExpanded">
+        关闭
+      </button>
       <svg v-if="hasDynamicTopology" viewBox="0 0 960 540" class="h-auto w-full topology-svg" role="img" aria-label="需求定制架构拓扑图">
         <defs>
           <marker id="dyn-arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto">
