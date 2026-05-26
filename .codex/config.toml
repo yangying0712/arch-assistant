@@ -1,0 +1,7 @@
+# Project-local Codex MCP overrides.
+#
+# Bind CodeGraph to this repository so codegraph_* tools can load the
+# existing .codegraph index without requiring projectPath on every call.
+[mcp_servers.codegraph]
+command = "codegraph"
+args = ["serve", "--mcp", "--path", 'E:\workspace\UserRegister\arch-assistant', "--no-watch"]

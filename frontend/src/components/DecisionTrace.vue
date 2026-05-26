@@ -31,7 +31,7 @@ defineProps<{ candidates: Candidate[]; caseMatches?: CaseMatch[] }>()
 
       <div v-if="candidates.length > 1 && candidates[1]?.risks?.length" class="trace-row trace-risk">
         <span class="trace-index">!</span>
-        <span class="text-sm leading-6 text-rose-100">
+        <span class="trace-risk-copy text-sm leading-6">
           备选方案 <b>{{ candidates[1].name }}</b> 的主要风险：
           {{ candidates[1].risks.slice(0, 2).join('；') }}
         </span>

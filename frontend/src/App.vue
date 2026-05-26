@@ -39,6 +39,8 @@ const isAnalyzing = ref(false)
 const statusMessage = ref('')
 const errorMessage = ref('')
 let reportTimer: number | undefined
+const activeSessionId = ref<string | null>(null)
+let streamController: AbortController | undefined
 
 const featureList = computed(() => {
   const features = result.value.features
@@ -76,13 +78,24 @@ function stopReportTyping() {
   }
 }
 
-function typeReport(fullText: string) {
+function isActiveSession(sessionId: string) {
+  return activeSessionId.value === sessionId
+}
+
+function typeReport(fullText: string, sessionId: string) {
   stopReportTyping()
+  if (!isActiveSession(sessionId)) return
+
   result.value = { ...result.value, report: '' }
 
   let index = 0
   const step = Math.max(1, Math.ceil(fullText.length / 260))
   reportTimer = window.setInterval(() => {
+    if (!isActiveSession(sessionId)) {
+      stopReportTyping()
+      return
+    }
+
     index = Math.min(fullText.length, index + step)
     result.value = { ...result.value, report: fullText.slice(0, index) }
     if (index >= fullText.length) stopReportTyping()
@@ -93,7 +106,9 @@ function normalizeCandidates(value: unknown): Candidate[] {
   return Array.isArray(value) ? value as Candidate[] : []
 }
 
-function applyStreamEvent(data: any) {
+function applyStreamEvent(data: any, sessionId: string) {
+  if (!isActiveSession(sessionId)) return
+
   if (data.event === 'status') {
     statusMessage.value = data.message || ''
     return
@@ -124,12 +139,12 @@ function applyStreamEvent(data: any) {
 
   if (data.event === 'report') {
     statusMessage.value = '报告生成完成，正在逐字呈现...'
-    typeReport(data.data || '')
+    typeReport(data.data || '', sessionId)
     return
   }
 
   if (data.event === 'done') {
-    if (data.report && !result.value.report) typeReport(data.report)
+    if (data.report && !result.value.report) typeReport(data.report, sessionId)
     statusMessage.value = '分析完成'
     return
   }
@@ -140,11 +155,15 @@ function applyStreamEvent(data: any) {
 }
 
 async function analyzeWithStream(prompt: string, sessionId: string) {
+  streamController = new AbortController()
   const response = await fetch('/api/v1/analyze/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, session_id: sessionId }),
+    signal: streamController.signal,
   })
+
+  if (!isActiveSession(sessionId)) return
 
   if (!response.ok || !response.body) {
     throw new Error(`HTTP ${response.status}`)
@@ -155,6 +174,11 @@ async function analyzeWithStream(prompt: string, sessionId: string) {
   let buffer = ''
 
   while (true) {
+    if (!isActiveSession(sessionId)) {
+      await reader.cancel()
+      break
+    }
+
     const { done, value } = await reader.read()
     if (done) break
 
@@ -165,13 +189,15 @@ async function analyzeWithStream(prompt: string, sessionId: string) {
     for (const frame of frames) {
       const dataLine = frame.split('\n').find(line => line.startsWith('data: '))
       if (!dataLine) continue
-      applyStreamEvent(JSON.parse(dataLine.slice(6)))
+      applyStreamEvent(JSON.parse(dataLine.slice(6)), sessionId)
     }
   }
 }
 
 async function analyzeWithFallback(prompt: string, sessionId: string) {
   const response = await axios.post('/api/v1/analyze', { prompt, session_id: sessionId }, { timeout: 180000 })
+  if (!isActiveSession(sessionId)) return
+
   const data = response.data || {}
   result.value = {
     features: data.features || null,
@@ -181,11 +207,13 @@ async function analyzeWithFallback(prompt: string, sessionId: string) {
     report: '',
     cached: data.cached,
   }
-  typeReport(data.report || '')
+  typeReport(data.report || '', sessionId)
 }
 
 async function handleSubmit(prompt: string, sessionId: string) {
+  streamController?.abort()
   stopReportTyping()
+  activeSessionId.value = sessionId
   result.value = emptyResult()
   errorMessage.value = ''
   statusMessage.value = '正在连接分析服务...'
@@ -194,24 +222,34 @@ async function handleSubmit(prompt: string, sessionId: string) {
   try {
     await analyzeWithStream(prompt, sessionId)
   } catch (streamError: any) {
+    if (!isActiveSession(sessionId) || streamError?.name === 'AbortError') return
+
     try {
       statusMessage.value = '流式通道不可用，切换为普通分析...'
       await analyzeWithFallback(prompt, sessionId)
     } catch (fallbackError: any) {
+      if (!isActiveSession(sessionId)) return
+
       errorMessage.value = `请求失败：${fallbackError?.response?.data?.detail || fallbackError?.message || streamError?.message || '未知错误'}`
       result.value = { ...result.value, report: errorMessage.value }
     }
   } finally {
-    isAnalyzing.value = false
+    if (isActiveSession(sessionId)) {
+      isAnalyzing.value = false
+      streamController = undefined
+    }
   }
 }
 
-onBeforeUnmount(stopReportTyping)
+onBeforeUnmount(() => {
+  streamController?.abort()
+  stopReportTyping()
+})
 </script>
 
 <template>
   <div :class="appClasses">
-    <header class="sticky top-0 z-20 border-b border-white/10 bg-slate-950/55 backdrop-blur-xl">
+    <header class="app-header-shell sticky top-0 z-20 border-b border-white/10">
       <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-8">
         <div class="flex items-center gap-3">
           <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-400 text-lg font-black text-slate-950 shadow-lg shadow-cyan-500/20">
@@ -233,7 +271,7 @@ onBeforeUnmount(stopReportTyping)
       </div>
     </header>
 
-    <main class="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6 md:px-8 xl:grid-cols-[390px_1fr]">
+    <main class="app-main-surface mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6 md:px-8 xl:grid-cols-[390px_1fr]">
       <section class="space-y-5">
         <InputPanel :is-busy="isAnalyzing" @submit="handleSubmit" @call-utterance="handleSubmit" />
 

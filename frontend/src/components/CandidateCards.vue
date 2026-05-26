@@ -52,7 +52,7 @@ function shortName(name: string) {
           </div>
         </div>
 
-        <p v-if="candidate.rule_engine_note" class="mb-3 rounded border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">
+        <p v-if="candidate.rule_engine_note" class="rule-engine-note mb-3 rounded border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs">
           {{ candidate.rule_engine_note }}
         </p>
 

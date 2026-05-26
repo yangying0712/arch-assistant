@@ -44,6 +44,23 @@ textarea {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
+.app-header-shell {
+  background:
+    linear-gradient(135deg, rgba(37, 63, 91, 0.86), rgba(37, 63, 91, 0.68) 48%, rgba(19, 33, 56, 0.78)),
+    rgba(37, 63, 91, 0.74);
+  box-shadow: 0 14px 38px rgba(2, 6, 23, 0.24);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+.app-main-surface {
+  background:
+    linear-gradient(180deg, rgba(84, 102, 135, 0.56), rgba(84, 102, 135, 0.38) 48%, rgba(84, 102, 135, 0.28)),
+    rgba(84, 102, 135, 0.32);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
 .theme-light {
   color-scheme: light;
   --bg-start: #eaf7ff;
@@ -221,6 +238,11 @@ textarea {
   --score-accent: var(--cyan);
 }
 
+.rule-engine-note {
+  color: #edc32c;
+  font-weight: 600;
+}
+
 .candidate-primary {
   border-color: rgba(34, 211, 238, 0.5);
   --score-accent: var(--cyan);
@@ -279,6 +301,14 @@ textarea {
   background: rgba(127, 29, 29, 0.18);
 }
 
+.trace-risk-copy {
+  color: #f5a8dd;
+}
+
+.trace-risk-copy b {
+  color: inherit;
+}
+
 .trace-index {
   display: flex;
   height: 24px;
@@ -298,6 +328,17 @@ textarea {
   background: linear-gradient(135deg, rgba(49, 46, 129, 0.60), rgba(8, 47, 73, 0.50), rgba(6, 78, 59, 0.26));
   padding: 20px;
   box-shadow: 0 18px 48px rgba(49, 46, 129, 0.18);
+}
+
+.combo-copy {
+  color: #6697d6;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.combo-copy b {
+  color: inherit;
+  font-weight: inherit;
 }
 
 .md-content h2,

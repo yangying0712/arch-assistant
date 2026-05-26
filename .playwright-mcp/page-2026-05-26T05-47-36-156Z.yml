@@ -1,0 +1,56 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]: AA
+        - generic [ref=e8]:
+          - heading "Architecture Assistant" [level=1] [ref=e9]
+          - paragraph [ref=e10]: 软件架构风格智能助手 · 多 Agent 决策工作台
+      - generic [ref=e11]:
+        - button "日间" [ref=e12]:
+          - generic [ref=e13]: 日间
+        - generic [ref=e14]: 4 个微服务
+        - generic [ref=e15]: 3 个智能体
+  - main [ref=e16]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]:
+            - paragraph [ref=e21]: Requirement Input
+            - heading "描述你的软件系统需求" [level=2] [ref=e22]
+            - paragraph [ref=e23]: 支持文本输入、单次语音输入和连续语音通话。
+          - generic [ref=e24]:
+            - textbox "例如：开发一个跨平台即时通讯系统，支持万人同时在线，要求消息实时可靠，后期需要快速扩展视频通话能力。" [ref=e25]
+            - generic [ref=e26]:
+              - generic [ref=e27]:
+                - button "🎙 语音" [ref=e28]:
+                  - generic [ref=e29]: 🎙
+                  - generic [ref=e30]: 语音
+                - button "☎ 通话" [ref=e31]:
+                  - generic [ref=e32]: ☎
+                  - generic [ref=e33]: 通话
+              - button "→ 开始分析" [disabled] [ref=e34]:
+                - generic [ref=e35]: →
+                - generic [ref=e36]: 开始分析
+        - generic [ref=e37]:
+          - generic [ref=e38]:
+            - heading "示例场景" [level=3] [ref=e39]
+            - generic [ref=e40]: 点击填入
+          - generic [ref=e41]:
+            - button "开发银行核心交易系统，需要处理转账、存款、贷款等业务，对数据一致性和审计追踪有极高要求，支持日均百万笔交易。" [ref=e42]
+            - button "构建大型 B2C 电商平台，包含商品、订单、支付、物流和评价模块，日活百万级，大促期间流量暴涨。" [ref=e43]
+            - button "开发在线视频处理平台，用户上传视频后需要经过转码、加水印、生成缩略图、内容审核等一系列处理步骤。" [ref=e44]
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - generic [ref=e47]: 首选架构
+          - strong [ref=e48]: 暂无
+        - generic [ref=e49]:
+          - generic [ref=e50]: 匹配度
+          - strong [ref=e51]: "--"
+        - generic [ref=e52]:
+          - generic [ref=e53]: 提取特征
+          - strong [ref=e54]: 0 项
+    - generic [ref=e56]:
+      - paragraph [ref=e57]: Architecture Workbench
+      - heading "输入需求后，系统会分阶段展示分析结果" [level=2] [ref=e58]
+      - paragraph [ref=e59]: 特征抽取、候选架构、拓扑图和评估报告会按处理进度陆续出现；报告正文采用打字机效果，减少等待完整响应时的空白感。
