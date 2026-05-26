@@ -6,9 +6,9 @@
 
 - 自然语言需求理解：提取并发量、一致性、扩展性、部署约束、关键业务特征。
 - 架构推荐：返回至少 3 种候选体系结构风格，并给出匹配度、推荐理由和风险提示。
-- 决策支持：展示候选架构对比、质量属性雷达、架构拓扑图、决策溯源和组合推荐。
+- 决策支持：展示候选架构对比、质量属性雷达、按用户需求定制的架构拓扑图、决策溯源和组合推荐。
 - LLM + 规则引擎混合推理：DeepSeek 负责语义理解与报告生成，规则引擎负责校验、加权和反偏见约束。
-- 知识进化：自动保存历史分析案例，后续相似需求可作为 Few-shot 上下文参考。
+- 知识进化：自动保存历史分析案例，后续相似需求可作为 Few-shot 上下文参考，并在决策溯源中展示相似案例命中。
 - Web 演示：Vue 前端由 API Gateway 托管，支持流式输出、报告打字机效果、日夜主题切换和语音输入。
 
 ## 系统架构
@@ -53,8 +53,8 @@ apps/
   llm-router/               # LLM API 代理
 frontend/                   # Vue 前端
 data/
-  architecture_styles.json  # 12 种架构风格知识库
-  test_scenarios.json       # 20 个典型测试场景
+  architecture_styles.json  # 21 种架构风格知识库
+  test_scenarios.json       # 29 个典型测试场景
   learned_cases.json        # 运行时学习案例
 docs/
   需求规格说明书.md
@@ -150,11 +150,11 @@ curl.exe -N -X POST http://127.0.0.1:3000/api/v1/analyze/stream ^
 | 微服务主体架构 | 4 个 FastAPI 微服务 |
 | 至少 3 类智能体 | 需求解析、架构匹配、评估生成 |
 | 集成 LLM | DeepSeek，经 LLM Router 调用 |
-| ≥10 种架构风格知识库 | `architecture_styles.json` 覆盖 12 种 |
-| ≥20 个测试场景 | `test_scenarios.json` 覆盖 20 个 |
+| ≥10 种架构风格知识库 | `architecture_styles.json` 覆盖 21 种，包含经典五大类及现代演进风格 |
+| ≥20 个测试场景 | `test_scenarios.json` 覆盖 29 个 |
 | 返回 ≥3 种候选架构 | 候选卡片按匹配度排序 |
 | 规则引擎 + LLM 混合推理 | `agent_runtime/graph.py` 中实现规则校验 |
-| 可视化对比与拓扑图 | 前端雷达图、候选卡片、拓扑图、决策溯源 |
+| 可视化对比与拓扑图 | 前端雷达图、候选卡片、需求定制拓扑图、决策溯源 |
 | Web API 接口 | `/api/v1/analyze` 与 `/api/v1/analyze/stream` |
 | 开发文档 | `docs/需求规格说明书.md`、`docs/架构设计文档.md`、`docs/测试报告.md` |
 | 答辩材料 | `docs/答辩材料.md` |
@@ -171,8 +171,8 @@ curl.exe -N -X POST http://127.0.0.1:3000/api/v1/analyze/stream ^
 
 1. 需求特征先流式出现。
 2. 候选架构出现，首选通常为 CQRS。
-3. 展示质量属性雷达与 CQRS 拓扑图。
-4. 展示决策溯源与组合推荐。
+3. 展示质量属性雷达与贴合银行交易需求的 CQRS 拓扑图。
+4. 展示决策溯源、相似案例参考与组合推荐。
 5. 评估报告以打字机效果逐步呈现。
 
 ## 已知说明
