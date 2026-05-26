@@ -3,7 +3,9 @@ version: "3.8"
 services:
   # ── Gateway ──────────────────────────────────
   api-gateway:
-    build: ./apps/api-gateway
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
     ports:
       - "3000:3000"
     environment:

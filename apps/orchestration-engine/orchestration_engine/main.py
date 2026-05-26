@@ -162,16 +162,17 @@ async def analyze_stream(request: PipelineRequest):
         yield f"data: {json.dumps({'event': 'status', 'message': '🤖 正在调用 Agent Runtime...'})}\n\n"
         
         try:
-            r = await call_with_retry(
-                "POST", f"{AGENT_RUNTIME_URL}/api/v1/run",
-                json={"prompt": request.prompt, "session_id": request.session_id},
-                timeout=180.0,
-            )
-            data = r.json()
-            yield f"data: {json.dumps({'event': 'features', 'data': data.get('features')})}\n\n"
-            yield f"data: {json.dumps({'event': 'candidates', 'data': data.get('candidates')})}\n\n"
-            yield f"data: {json.dumps({'event': 'report', 'data': data.get('report')})}\n\n"
-            yield f"data: {json.dumps({'event': 'done'})}\n\n"
+            async with httpx.AsyncClient() as stream_client:
+                async with stream_client.stream(
+                    "POST",
+                    f"{AGENT_RUNTIME_URL}/api/v1/run/stream",
+                    json={"prompt": request.prompt, "session_id": request.session_id},
+                    timeout=180.0,
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line:
+                            yield line + "\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'event': 'error', 'message': str(e)})}\n\n"
     
