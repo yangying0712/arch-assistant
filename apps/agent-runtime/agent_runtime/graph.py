@@ -35,6 +35,7 @@ class AgentState(TypedDict):
     candidate_styles: list
     recommendations: list
     evaluation_report: str
+    topology: dict
     current_stage: str
     next_step: str
     case_context: str  # 知识进化：历史案例Few-shot上下文
@@ -455,6 +456,154 @@ def rule_engine_validate(candidates: list[dict], features: dict, requirement: st
     
     return validated
 
+# ── Requirement-aware Topology ─────────────────────
+def _topology_key(arch_name: str) -> str:
+    name = arch_name.lower()
+    if "cqrs" in name:
+        return "cqrs"
+    if "pipe" in name or "管道" in arch_name or "过滤器" in arch_name:
+        return "pipe"
+    if "规则系统" in arch_name or "rule" in name:
+        return "rule_system"
+    if "解释器" in arch_name or "interpreter" in name:
+        return "interpreter"
+    if "多agent" in name or "multi-agent" in name:
+        return "multi_agent"
+    if "黑板" in arch_name or "blackboard" in name:
+        return "blackboard"
+    if "仓库" in arch_name or "repository" in name:
+        return "repository"
+    if "批处理" in arch_name or "batch" in name:
+        return "batch"
+    if "进程通信" in arch_name or "communicating" in name:
+        return "processes"
+    if "面向对象" in arch_name or "object-oriented" in name or "object oriented" in name:
+        return "object_oriented"
+    if "主程序" in arch_name or "subroutine" in name:
+        return "main_subroutine"
+    if "microservice" in name or "微服务" in arch_name:
+        return "microservices"
+    if "event" in name or "事件" in arch_name:
+        return "event"
+    if "六边形" in arch_name or "hexagonal" in name:
+        return "hexagonal"
+    if "layered" in name or "分层" in arch_name:
+        return "layered"
+    return "default"
+
+def _node(node_id: str, label: str, node_type: str, hint: str, x: int, y: int) -> dict:
+    return {"id": node_id, "label": label, "type": node_type, "hint": hint, "x": x, "y": y}
+
+def _edge(source: str, target: str, label: str, edge_type: str = "sync") -> dict:
+    return {"from": source, "to": target, "label": label, "type": edge_type}
+
+def build_requirement_topology(requirement: str, features: dict, candidates: list[dict]) -> dict:
+    """基于需求特征和首选架构生成可视化拓扑模型，前端可直接渲染节点/边。"""
+    top_name = candidates[0].get("name", "通用架构") if candidates else "通用架构"
+    key = _topology_key(top_name)
+    req = requirement.lower()
+    domain = features.get("domain") or "目标系统"
+    requirements = [
+        *[str(x) for x in features.get("features", [])[:4]],
+        *[str(x) for x in features.get("key_requirements", [])[:4]],
+    ][:6]
+
+    def pipe_labels() -> list[str]:
+        if any(word in req for word in ["视频", "转码", "水印", "缩略图", "审核"]):
+            return ["视频上传", "转码", "加水印", "生成缩略图", "内容审核", "发布/存储"]
+        if any(word in req for word in ["ci/cd", "构建", "测试", "部署"]):
+            return ["代码提交", "构建", "自动化测试", "制品归档", "审批", "部署"]
+        return ["输入数据", "清洗", "转换", "校验", "聚合", "输出结果"]
+
+    if key == "cqrs":
+        transaction_label = "交易命令" if any(w in req for w in ["银行", "转账", "存款", "贷款"]) else "业务命令"
+        read_label = "账户/审计查询" if "银行" in req else "查询模型"
+        nodes = [
+            _node("client", "用户/外部系统", "actor", f"来自需求领域：{domain}", 70, 230),
+            _node("command", transaction_label, "command", "处理写操作和事务边界", 270, 155),
+            _node("write_db", "写库/事件日志", "store", "保存权威事实和审计记录", 270, 330),
+            _node("projection", "事件投影", "event", "把写侧事实同步到读模型", 500, 330),
+            _node("query", read_label, "query", "面向高频读取优化", 700, 155),
+            _node("read_db", "读库/缓存", "store", "支撑报表、历史和聚合查询", 700, 330),
+        ]
+        edges = [_edge("client", "command", "提交命令", "command"), _edge("command", "write_db", "事务写入", "command"), _edge("write_db", "projection", "发布领域事件", "event"), _edge("projection", "read_db", "更新投影视图", "event"), _edge("client", "query", "读取", "sync"), _edge("query", "read_db", "查询优化视图", "sync")]
+    elif key == "pipe":
+        labels = pipe_labels()
+        nodes = [_node(f"step{i}", label, "filter" if i not in (0, len(labels) - 1) else "endpoint", f"需求定制步骤：{label}", 90 + i * 150, 245) for i, label in enumerate(labels)]
+        edges = [_edge(f"step{i}", f"step{i+1}", "流转", "stream") for i in range(len(labels) - 1)]
+    elif key == "rule_system":
+        nodes = [
+            _node("facts", "申请事实/输入数据", "store", "收入、征信、负债率等事实", 80, 255),
+            _node("rules", "规则库", "store", "地区政策、风控和审批规则", 300, 130),
+            _node("engine", "推理机", "compute", "匹配规则并解释决策", 490, 255),
+            _node("audit", "命中记录", "store", "记录规则命中和人工复核依据", 680, 130),
+            _node("decision", "审批结果", "output", "通过、拒绝或人工复核", 790, 255),
+        ]
+        edges = [_edge("facts", "engine", "输入事实"), _edge("rules", "engine", "加载规则"), _edge("engine", "audit", "记录解释", "event"), _edge("engine", "decision", "输出决策")]
+    elif key == "multi_agent":
+        nodes = [
+            _node("user", "用户目标", "actor", f"任务领域：{domain}", 70, 250),
+            _node("coordinator", "协调Agent", "agent", "拆解任务并汇总结论", 260, 250),
+            _node("planner", "规划Agent", "agent", "制定步骤和约束", 470, 120),
+            _node("researcher", "检索Agent", "agent", "收集资料和证据", 470, 250),
+            _node("reviewer", "评审Agent", "agent", "校验结论和风险", 470, 380),
+            _node("memory", "共享记忆/黑板", "store", "保存上下文、案例和中间结果", 720, 250),
+        ]
+        edges = [_edge("user", "coordinator", "提交目标"), _edge("coordinator", "planner", "分派规划", "message"), _edge("coordinator", "researcher", "分派检索", "message"), _edge("coordinator", "reviewer", "分派评审", "message"), _edge("planner", "memory", "写入计划", "event"), _edge("researcher", "memory", "写入证据", "event"), _edge("reviewer", "memory", "写入反馈", "event"), _edge("memory", "coordinator", "汇总上下文", "message")]
+    elif key == "blackboard":
+        nodes = [
+            _node("source1", "影像/数据模型", "compute", "独立知识源", 90, 150),
+            _node("source2", "文本/规则模型", "compute", "独立知识源", 90, 340),
+            _node("controller", "控制器", "compute", "选择下一步推理", 370, 250),
+            _node("blackboard", "共享黑板", "store", "沉淀中间结论和置信度", 600, 250),
+            _node("result", "综合结论", "output", "面向用户输出", 810, 250),
+        ]
+        edges = [_edge("source1", "blackboard", "写入线索", "event"), _edge("source2", "blackboard", "写入线索", "event"), _edge("blackboard", "controller", "读取状态"), _edge("controller", "source1", "调度"), _edge("controller", "source2", "调度"), _edge("blackboard", "result", "形成结论")]
+    elif key == "repository":
+        nodes = [
+            _node("tool1", "检索工具", "compute", "读取共享知识", 110, 130),
+            _node("tool2", "标注/审核工具", "compute", "写入元数据", 110, 370),
+            _node("repo", "中心知识库/仓库", "store", "统一文档、元数据和权限", 430, 250),
+            _node("qa", "问答服务", "compute", "基于仓库生成回答", 720, 130),
+            _node("governance", "权限/治理", "guard", "集中控制访问和版本", 720, 370),
+        ]
+        edges = [_edge("tool1", "repo", "查询/索引"), _edge("tool2", "repo", "写入标注"), _edge("repo", "qa", "检索上下文"), _edge("governance", "repo", "治理策略")]
+    elif key == "batch":
+        nodes = [
+            _node("sources", "交易/业务数据源", "store", "批量输入", 80, 250),
+            _node("scheduler", "作业调度器", "compute", "夜间、日终或定时触发", 270, 250),
+            _node("batch", "批处理作业", "compute", "清算、对账、报表生成", 470, 250),
+            _node("checkpoint", "检查点/审计日志", "store", "支持失败恢复和重跑", 670, 140),
+            _node("output", "报表/结果库", "output", "监管报表或批量结果", 790, 300),
+        ]
+        edges = [_edge("sources", "scheduler", "提交批次"), _edge("scheduler", "batch", "触发作业"), _edge("batch", "checkpoint", "记录进度", "event"), _edge("batch", "output", "输出结果")]
+    elif key == "processes":
+        nodes = [
+            _node("scheduler", "调度进程", "compute", "分配任务和URL", 130, 250),
+            _node("queue", "消息通道", "event", "进程间通信", 330, 250),
+            _node("worker1", "工作进程 A", "compute", "并发执行任务", 560, 140),
+            _node("worker2", "工作进程 B", "compute", "并发执行任务", 560, 360),
+            _node("result", "结果汇聚", "store", "回传抓取或计算结果", 800, 250),
+        ]
+        edges = [_edge("scheduler", "queue", "投递任务", "message"), _edge("queue", "worker1", "消费任务", "message"), _edge("queue", "worker2", "消费任务", "message"), _edge("worker1", "result", "回传结果", "message"), _edge("worker2", "result", "回传结果", "message")]
+    else:
+        nodes = [
+            _node("entry", "用户入口", "actor", f"需求领域：{domain}", 90, 250),
+            _node("core", top_name.split(" (")[0], "compute", "首选架构核心组件", 360, 250),
+            _node("data", "数据/状态", "store", "承载业务数据和历史记录", 650, 150),
+            _node("integration", "外部集成", "compute", "对接下游系统或服务", 650, 350),
+        ]
+        edges = [_edge("entry", "core", "请求/命令"), _edge("core", "data", "读写"), _edge("core", "integration", "调用/事件")]
+
+    return {
+        "title": f"{domain}的{top_name.split(' (')[0]}拓扑",
+        "style_key": key,
+        "arch_name": top_name,
+        "requirements": list(dict.fromkeys(requirements)),
+        "nodes": nodes,
+        "edges": edges,
+    }
+
 # ── Step 4: Evaluation Agent ───────────────────────
 EVALUATION_PROMPT = """你是一个软件架构评估专家。基于候选架构风格进行多维度对比分析。
 
@@ -499,6 +648,11 @@ async def evaluation(state: AgentState) -> AgentState:
     response = await llm.ainvoke(messages)
     
     state["evaluation_report"] = response.content
+    state["topology"] = build_requirement_topology(
+        state["user_requirement"],
+        state["extracted_features"],
+        state["candidate_styles"],
+    )
     state["current_stage"] = "evaluation_complete"
     logger.info("   评估报告生成完成")
     return state

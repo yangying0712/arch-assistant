@@ -36,6 +36,7 @@ class PipelineResponse(BaseModel):
     session_id: str
     features: dict | None = None
     candidates: list | None = None
+    topology: dict | None = None
     report: str | None = None
     steps: list[StepInfo] = []
     cached: bool = False
@@ -88,6 +89,7 @@ async def analyze(request: PipelineRequest):
                 session_id=request.session_id,
                 features=cached_data.get("features"),
                 candidates=cached_data.get("candidates"),
+                topology=cached_data.get("topology"),
                 report=cached_data.get("report"),
                 steps=[StepInfo(name="cache_hit", status="success")],
                 cached=True,
@@ -113,6 +115,7 @@ async def analyze(request: PipelineRequest):
     
     features = agent_result.get("features")
     candidates = agent_result.get("candidates")
+    topology = agent_result.get("topology")
     report = agent_result.get("report")
     
     # Step 2: LLM 润色报告（可选）
@@ -142,7 +145,7 @@ async def analyze(request: PipelineRequest):
         if len(_cache) >= CACHE_MAX:
             oldest = min(_cache, key=lambda k: _cache[k][1])
             _cache.pop(oldest, None)
-        _cache[key] = ({"features": features, "candidates": candidates, "report": report}, time.time())
+        _cache[key] = ({"features": features, "candidates": candidates, "topology": topology, "report": report}, time.time())
     
     elapsed = round((time.perf_counter() - t0) * 1000)
     logger.info(f"✅ [{request.session_id}] 流水线完成 ({elapsed}ms)")
@@ -151,6 +154,7 @@ async def analyze(request: PipelineRequest):
         session_id=request.session_id,
         features=features,
         candidates=candidates,
+        topology=topology,
         report=report,
         steps=steps,
     )

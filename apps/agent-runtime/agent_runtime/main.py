@@ -19,6 +19,7 @@ class RunTaskResponse(BaseModel):
     session_id: str
     features: dict | None = None
     candidates: list | None = None
+    topology: dict | None = None
     report: str | None = None
     current_stage: str
     elapsed_ms: float
@@ -59,6 +60,7 @@ async def run_task(request: RunTaskRequest):
         "candidate_styles": [],
         "recommendations": [],
         "evaluation_report": "",
+        "topology": {},
         "current_stage": "init",
         "next_step": "",
         "case_context": case_context,
@@ -88,6 +90,7 @@ async def run_task(request: RunTaskRequest):
         session_id=request.session_id,
         features=result.get("extracted_features"),
         candidates=result.get("candidate_styles"),
+        topology=result.get("topology"),
         report=result.get("evaluation_report"),
         current_stage=result.get("current_stage", "unknown"),
         elapsed_ms=elapsed,
@@ -105,6 +108,7 @@ async def run_task_stream(request: RunTaskRequest):
             "candidate_styles": [],
             "recommendations": [],
             "evaluation_report": "",
+            "topology": {},
             "current_stage": "init",
             "next_step": "",
             "case_context": case_context,
@@ -128,6 +132,9 @@ async def run_task_stream(request: RunTaskRequest):
                 elif "evaluation" in stage:
                     cands = node_data.get("candidate_styles", [])
                     yield f"data: {json.dumps({'event': 'candidates', 'data': cands})}\n\n"
+                    topology = node_data.get("topology", {})
+                    if topology:
+                        yield f"data: {json.dumps({'event': 'topology', 'data': topology})}\n\n"
                     report = node_data.get("evaluation_report", "")
                     yield f"data: {json.dumps({'event': 'report', 'data': report})}\n\n"
 
