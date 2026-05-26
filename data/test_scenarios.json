@@ -3,7 +3,13 @@
     "id": 1,
     "domain": "即时通讯",
     "description": "开发一个跨平台的即时通讯系统，要求支持万人同时在线，需要保证消息的实时性和可靠性，后期可能需要快速扩展视频通话功能",
-    "expected_features": ["高并发", "实时性", "异步通信", "松耦合", "易扩展"],
+    "expected_features": [
+      "高并发",
+      "实时性",
+      "异步通信",
+      "松耦合",
+      "易扩展"
+    ],
     "primary_recommendation": "事件驱动架构",
     "secondary_recommendation": "微服务架构",
     "reasoning": "高并发场景下的事件异步处理能力；松耦合特性便于扩展视频通话模块"
@@ -12,7 +18,12 @@
     "id": 2,
     "domain": "电商平台",
     "description": "构建一个大型B2C电商平台，包含商品管理、订单处理、支付、物流、用户评价等模块，日活百万级，大促期间流量暴涨",
-    "expected_features": ["高可用", "弹性扩展", "分布式", "服务独立部署"],
+    "expected_features": [
+      "高可用",
+      "弹性扩展",
+      "分布式",
+      "服务独立部署"
+    ],
     "primary_recommendation": "微服务架构",
     "secondary_recommendation": "事件驱动架构",
     "reasoning": "各业务模块独立迭代和扩展；大促期间对订单/支付模块单独扩容；事件驱动处理异步订单流程"
@@ -21,7 +32,11 @@
     "id": 3,
     "domain": "博客系统",
     "description": "做一个个人技术博客，支持 Markdown 编辑、分类标签、评论、RSS 订阅，预计日访问量几百",
-    "expected_features": ["简单快速", "易于维护", "低成本部署"],
+    "expected_features": [
+      "简单快速",
+      "易于维护",
+      "低成本部署"
+    ],
     "primary_recommendation": "MVC架构",
     "secondary_recommendation": "分层架构",
     "reasoning": "业务简单，单体应用即可满足；MVC框架成熟，开发效率高；无需引入分布式复杂性"
@@ -30,7 +45,12 @@
     "id": 4,
     "domain": "物联网平台",
     "description": "构建一个物联网数据平台，需要接入百万级设备，实时采集传感器数据，支持数据聚合分析和告警触发",
-    "expected_features": ["海量数据接入", "实时处理", "异步通信", "高吞吐"],
+    "expected_features": [
+      "海量数据接入",
+      "实时处理",
+      "异步通信",
+      "高吞吐"
+    ],
     "primary_recommendation": "事件驱动架构",
     "secondary_recommendation": "管道-过滤器架构",
     "reasoning": "设备数据天然适合事件驱动模型；管道过滤器架构适合数据流处理；两者结合实现数据采集-处理-存储链条"
@@ -39,7 +59,12 @@
     "id": 5,
     "domain": "银行核心交易系统",
     "description": "开发银行核心交易系统，需要处理转账、存款、贷款等业务，对数据一致性和事务有极高要求，支持日均百万笔交易",
-    "expected_features": ["强一致性", "事务支持", "高性能", "读写分离"],
+    "expected_features": [
+      "强一致性",
+      "事务支持",
+      "高性能",
+      "读写分离"
+    ],
     "primary_recommendation": "CQRS架构",
     "secondary_recommendation": "六边形架构",
     "reasoning": "读写负载差异巨大适合CQRS分离；六边形架构保持核心业务纯净；配合事件溯源实现审计追溯"
@@ -48,7 +73,12 @@
     "id": 6,
     "domain": "视频处理平台",
     "description": "开发一个在线视频处理平台，用户上传视频后需要经过转码、加水印、生成缩略图、内容审核等一系列处理步骤",
-    "expected_features": ["数据处理管道", "异步处理", "并行化", "任务编排"],
+    "expected_features": [
+      "数据处理管道",
+      "异步处理",
+      "并行化",
+      "任务编排"
+    ],
     "primary_recommendation": "管道-过滤器架构",
     "secondary_recommendation": "微服务架构",
     "reasoning": "视频处理天然适合管道模式；每个处理步骤独立可替换；微服务支持各处理模块独立扩缩容"
@@ -57,7 +87,12 @@
     "id": 7,
     "domain": "在线IDE",
     "description": "开发一个在线代码编辑器，支持语法高亮、代码补全、多语言编译运行、插件扩展、多人协作编辑",
-    "expected_features": ["可扩展", "插件化", "实时协作", "多语言支持"],
+    "expected_features": [
+      "可扩展",
+      "插件化",
+      "实时协作",
+      "多语言支持"
+    ],
     "primary_recommendation": "插件架构",
     "secondary_recommendation": "微服务架构",
     "reasoning": "语言支持和功能扩展天然适合插件模式；编译运行服务可独立部署为微服务；核心编辑器保持轻量"
@@ -66,7 +101,12 @@
     "id": 8,
     "domain": "内容分发网络",
     "description": "构建一个全球内容分发网络，需要在全球部署边缘节点，用户就近获取内容，支持热点内容的智能缓存和分发",
-    "expected_features": ["去中心化", "全球部署", "智能路由", "高可用"],
+    "expected_features": [
+      "去中心化",
+      "全球部署",
+      "智能路由",
+      "高可用"
+    ],
     "primary_recommendation": "对等架构",
     "secondary_recommendation": "事件驱动架构",
     "reasoning": "CDN天然去中心化；节点间对等通信降低中心压力；事件驱动处理缓存更新和内容同步"
@@ -75,7 +115,12 @@
     "id": 9,
     "domain": "秒杀系统",
     "description": "设计一个秒杀系统，需要在极短时间内处理海量并发请求，保证不超卖，用户体验良好",
-    "expected_features": ["极高并发", "低延迟", "流量削峰", "防超卖"],
+    "expected_features": [
+      "极高并发",
+      "低延迟",
+      "流量削峰",
+      "防超卖"
+    ],
     "primary_recommendation": "Space-Based架构",
     "secondary_recommendation": "事件驱动架构",
     "reasoning": "秒杀场景需要消除数据库瓶颈，内存级处理；基于空间的架构提供极高吞吐量；事件驱动削峰填谷"
@@ -84,7 +129,12 @@
     "id": 10,
     "domain": "企业OA系统",
     "description": "开发一个企业内部OA系统，包含审批流、考勤、公告、文档管理、邮件集成等功能，用户量几千人",
-    "expected_features": ["工作流", "角色权限", "系统集成", "快速开发"],
+    "expected_features": [
+      "工作流",
+      "角色权限",
+      "系统集成",
+      "快速开发"
+    ],
     "primary_recommendation": "分层架构",
     "secondary_recommendation": "SOA架构",
     "reasoning": "企业内部场景，用户量有限；分层架构简单可靠；如需集成遗留系统可升级到SOA"
@@ -93,7 +143,12 @@
     "id": 11,
     "domain": "文件同步网盘",
     "description": "构建一个文件同步服务，支持多端文件实时同步、版本历史、冲突解决、离线编辑",
-    "expected_features": ["实时同步", "冲突解决", "离线支持", "去中心化"],
+    "expected_features": [
+      "实时同步",
+      "冲突解决",
+      "离线支持",
+      "去中心化"
+    ],
     "primary_recommendation": "CQRS + 事件溯源",
     "secondary_recommendation": "对等架构",
     "reasoning": "文件变更是天然事件流；CQRS分离读写优化查询；事件溯源实现版本回溯；P2P传输降低中心带宽"
@@ -102,7 +157,12 @@
     "id": 12,
     "domain": "报表生成服务",
     "description": "需要一个定时报表生成服务，每天凌晨从多个数据源拉取数据，生成日报/周报/月报并发送邮件",
-    "expected_features": ["定时任务", "数据处理", "多数据源", "按需执行"],
+    "expected_features": [
+      "定时任务",
+      "数据处理",
+      "多数据源",
+      "按需执行"
+    ],
     "primary_recommendation": "Serverless架构",
     "secondary_recommendation": "管道-过滤器架构",
     "reasoning": "定时任务天然适合Serverless，按需执行无需常驻服务器；管道过滤器模型处理多数据源的ETL流程"
@@ -111,7 +171,12 @@
     "id": 13,
     "domain": "在线教育平台",
     "description": "构建在线教育平台，包括课程管理、直播授课、作业提交批改、考试系统、学习进度追踪",
-    "expected_features": ["多模块", "独立迭代", "视频直播", "高并发考试"],
+    "expected_features": [
+      "多模块",
+      "独立迭代",
+      "视频直播",
+      "高并发考试"
+    ],
     "primary_recommendation": "微服务架构",
     "secondary_recommendation": "事件驱动架构",
     "reasoning": "课程/考试/直播等模块有不同的扩展需求；考试期间单独扩容考试服务；事件驱动处理学习进度更新"
@@ -120,7 +185,12 @@
     "id": 14,
     "domain": "保险理赔系统",
     "description": "开发保险理赔核心系统，处理报案、查勘、定损、理算、支付全流程，对接多个外部系统，需要严格的审计追溯",
-    "expected_features": ["业务复杂", "外部集成", "审计追溯", "流程引擎"],
+    "expected_features": [
+      "业务复杂",
+      "外部集成",
+      "审计追溯",
+      "流程引擎"
+    ],
     "primary_recommendation": "六边形架构",
     "secondary_recommendation": "事件驱动 + CQRS",
     "reasoning": "核心理赔逻辑复杂需要DDD+六边形架构保护；事件驱动处理外部系统集成；CQRS+事件溯源实现完整审计"
@@ -129,7 +199,12 @@
     "id": 15,
     "domain": "社交媒体Feed流",
     "description": "实现一个类似微博/Twitter的Feed流系统，支持用户发布动态、关注关系、Feed聚合和实时推送",
-    "expected_features": ["Feed聚合", "实时推送", "高并发读取", "海量数据"],
+    "expected_features": [
+      "Feed聚合",
+      "实时推送",
+      "高并发读取",
+      "海量数据"
+    ],
     "primary_recommendation": "CQRS + 事件驱动",
     "secondary_recommendation": "微服务架构",
     "reasoning": "读多写少场景CQRS优势明显；事件驱动处理关注关系和Feed分发；微服务支持各个功能独立扩展"
@@ -138,7 +213,12 @@
     "id": 16,
     "domain": "政府电子政务平台",
     "description": "构建省级电子政务一体化平台，需要整合多个部门系统（公安/社保/税务/工商等），提供统一办事入口",
-    "expected_features": ["系统集成", "遗留系统对接", "统一入口", "标准化接口"],
+    "expected_features": [
+      "系统集成",
+      "遗留系统对接",
+      "统一入口",
+      "标准化接口"
+    ],
     "primary_recommendation": "SOA架构",
     "secondary_recommendation": "微服务架构",
     "reasoning": "遗留系统集成是SOA的传统优势场景；ESB提供统一的服务编排和治理；渐进式向微服务演进"
@@ -147,7 +227,12 @@
     "id": 17,
     "domain": "游戏排行榜服务",
     "description": "实现一个全球玩家排行榜服务，需要实时更新分数、支持千万级玩家排名查询，延迟要求在100ms以内",
-    "expected_features": ["极低延迟", "海量数据", "实时更新", "高并发查询"],
+    "expected_features": [
+      "极低延迟",
+      "海量数据",
+      "实时更新",
+      "高并发查询"
+    ],
     "primary_recommendation": "Space-Based架构",
     "secondary_recommendation": "CQRS架构",
     "reasoning": "排行榜需要内存级访问速度；基于空间的架构消除数据库瓶颈；CQRS分离排名更新和查询"
@@ -156,7 +241,12 @@
     "id": 18,
     "domain": "微服务API网关",
     "description": "为公司的微服务体系构建一个统一的API网关，支持路由转发、限流、认证鉴权、协议转换、日志监控",
-    "expected_features": ["路由代理", "限流降级", "安全认证", "协议转换"],
+    "expected_features": [
+      "路由代理",
+      "限流降级",
+      "安全认证",
+      "协议转换"
+    ],
     "primary_recommendation": "插件架构",
     "secondary_recommendation": "管道-过滤器架构",
     "reasoning": "网关功能天然适合插件化扩展；每个中间件功能独立；请求经过管道过滤器链处理"
@@ -165,7 +255,12 @@
     "id": 19,
     "domain": "区块链溯源系统",
     "description": "构建一个供应链溯源系统，基于区块链技术记录商品从生产到销售的全链路信息，保证数据不可篡改",
-    "expected_features": ["去中心化", "不可篡改", "分布式共识", "点对点通信"],
+    "expected_features": [
+      "去中心化",
+      "不可篡改",
+      "分布式共识",
+      "点对点通信"
+    ],
     "primary_recommendation": "对等架构",
     "secondary_recommendation": "事件驱动 + CQRS",
     "reasoning": "区块链天然是P2P架构；对等网络实现去中心化共识；事件驱动记录溯源事件流"
@@ -174,9 +269,133 @@
     "id": 20,
     "domain": "DevOps CI/CD平台",
     "description": "开发一个企业级CI/CD平台，支持代码构建、自动化测试、制品管理、多环境部署、审批流程",
-    "expected_features": ["管道处理", "插件扩展", "异步执行", "多租户"],
+    "expected_features": [
+      "管道处理",
+      "插件扩展",
+      "异步执行",
+      "多租户"
+    ],
     "primary_recommendation": "管道-过滤器架构",
     "secondary_recommendation": "插件架构",
     "reasoning": "CI/CD流水线天然是管道过滤器模型；构建-测试-部署的链式处理；插件架构支持自定义构建步骤"
+  },
+  {
+    "id": 21,
+    "domain": "银行日终结算",
+    "description": "银行每天夜间需要对上百万笔交易进行日终清算、对账、生成监管报表，允许离线执行但要求可重跑和审计。",
+    "expected_features": [
+      "离线批量处理",
+      "可重跑",
+      "审计",
+      "高吞吐"
+    ],
+    "primary_recommendation": "批处理架构",
+    "secondary_recommendation": "管道-过滤器架构",
+    "reasoning": "日终清算和报表天然是批量作业，强调吞吐、检查点和可重放。"
+  },
+  {
+    "id": 22,
+    "domain": "命令行文件整理工具",
+    "description": "开发一个本地命令行工具，按固定流程扫描目录、解析文件名、移动文件并输出统计结果，功能简单稳定。",
+    "expected_features": [
+      "固定流程",
+      "本地工具",
+      "低复杂度"
+    ],
+    "primary_recommendation": "主程序-子过程架构",
+    "secondary_recommendation": "分层架构",
+    "reasoning": "流程固定且规模小，主程序调用子过程即可保持控制流清晰。"
+  },
+  {
+    "id": 23,
+    "domain": "图形建模编辑器",
+    "description": "开发一个图形建模编辑器，包含图形对象、连接线、属性面板、撤销重做和多种图元扩展。",
+    "expected_features": [
+      "对象封装",
+      "图元扩展",
+      "领域对象清晰"
+    ],
+    "primary_recommendation": "面向对象架构",
+    "secondary_recommendation": "插件架构",
+    "reasoning": "图形、连接线和命令都适合封装为对象，扩展图元可结合插件机制。"
+  },
+  {
+    "id": 24,
+    "domain": "企业知识管理平台",
+    "description": "多个检索、标注、审核和问答工具需要围绕统一知识库协作，共享文档、元数据和权限。",
+    "expected_features": [
+      "共享数据",
+      "统一知识库",
+      "多工具集成"
+    ],
+    "primary_recommendation": "仓库架构",
+    "secondary_recommendation": "黑板架构",
+    "reasoning": "多个工具围绕中心知识库读写数据，是数据中心风格的典型场景。"
+  },
+  {
+    "id": 25,
+    "domain": "多模型诊断系统",
+    "description": "构建医学辅助诊断系统，影像模型、文本模型、规则模型和医生反馈需要在共享工作区中逐步补充诊断结论。",
+    "expected_features": [
+      "多知识源",
+      "共享工作区",
+      "增量推理"
+    ],
+    "primary_recommendation": "黑板架构",
+    "secondary_recommendation": "多Agent架构",
+    "reasoning": "多个知识源对共享黑板写入中间判断，控制器选择下一步推理。"
+  },
+  {
+    "id": 26,
+    "domain": "DSL自动化平台",
+    "description": "开发一个自动化平台，用户编写领域脚本描述任务流程，系统运行时解析脚本并执行对应动作。",
+    "expected_features": [
+      "DSL",
+      "脚本执行",
+      "运行时解析"
+    ],
+    "primary_recommendation": "解释器架构",
+    "secondary_recommendation": "规则系统架构",
+    "reasoning": "运行时解析并执行领域脚本，是解释器/虚拟机风格。"
+  },
+  {
+    "id": 27,
+    "domain": "信贷审批规则引擎",
+    "description": "信贷审批需要根据收入、征信、负债率、地区政策等大量可配置规则给出通过、拒绝或人工复核建议。",
+    "expected_features": [
+      "规则可配置",
+      "推理机",
+      "决策可解释"
+    ],
+    "primary_recommendation": "规则系统架构",
+    "secondary_recommendation": "解释器架构",
+    "reasoning": "事实库、规则库和推理机分离，便于业务规则持续调整。"
+  },
+  {
+    "id": 28,
+    "domain": "分布式爬虫平台",
+    "description": "构建多进程分布式爬虫，调度进程分发URL，多个工作进程抓取页面并通过消息通道回传结果。",
+    "expected_features": [
+      "多进程",
+      "消息通信",
+      "并发处理"
+    ],
+    "primary_recommendation": "进程通信架构",
+    "secondary_recommendation": "事件驱动架构",
+    "reasoning": "独立进程通过消息/RPC协作，强调并发和隔离。"
+  },
+  {
+    "id": 29,
+    "domain": "多Agent研究助手",
+    "description": "构建多Agent研究助手，规划Agent拆解问题，检索Agent查资料，评审Agent校验结论，最终由协调Agent汇总报告。",
+    "expected_features": [
+      "多Agent协作",
+      "任务分解",
+      "共享记忆",
+      "评审闭环"
+    ],
+    "primary_recommendation": "多Agent架构",
+    "secondary_recommendation": "黑板架构",
+    "reasoning": "多个自治Agent按角色协作，并通过共享记忆或黑板综合结果。"
   }
 ]
