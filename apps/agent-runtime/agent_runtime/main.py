@@ -126,6 +126,8 @@ async def run_task_stream(request: RunTaskRequest):
                     cands = node_data.get("candidate_styles", [])
                     yield f"data: {json.dumps({'event': 'candidates', 'data': cands})}\n\n"
                 elif "evaluation" in stage:
+                    cands = node_data.get("candidate_styles", [])
+                    yield f"data: {json.dumps({'event': 'candidates', 'data': cands})}\n\n"
                     report = node_data.get("evaluation_report", "")
                     yield f"data: {json.dumps({'event': 'report', 'data': report})}\n\n"
 

@@ -282,6 +282,66 @@ def rule_engine_validate(candidates: list[dict], features: dict, requirement: st
             if kb_name in name or name in kb_name:
                 candidate_map[kb_name] = c
                 break
+
+    def has_any(keywords: list[str]) -> bool:
+        return any(keyword.lower() in req_lower for keyword in keywords)
+
+    def find_candidate(keyword: str) -> dict | None:
+        for candidate in candidates:
+            if keyword.lower() in candidate.get("name", "").lower():
+                return candidate
+        return None
+
+    def find_kb_name(keyword: str) -> str | None:
+        for kb_name in full_kb:
+            if keyword.lower() in kb_name.lower():
+                return kb_name
+        return None
+
+    # Course-reference scenario:
+    # cross-platform IM + massive online users + realtime reliable messages + future video calls
+    # should rank Event-Driven as the core option and Microservices as the backup option.
+    im_realtime_signal = has_any(["即时通讯", "im", "聊天", "消息", "实时", "万人", "在线", "视频通话", "跨平台"])
+    cqrs_strong_signal = has_any(["银行", "交易", "转账", "存款", "贷款", "审计", "强一致", "事务", "读写分离", "事件溯源"])
+    if im_realtime_signal and not cqrs_strong_signal:
+        event_candidate = find_candidate("Event-Driven") or find_candidate("事件")
+        if event_candidate:
+            event_candidate["match_score"] = max(event_candidate.get("match_score", 0.0), 0.92)
+            event_candidate["rule_engine_note"] = "即时通讯实时消息场景触发：事件驱动作为核心推荐"
+
+        micro_candidate = find_candidate("Microservices") or find_candidate("微服务")
+        if micro_candidate:
+            micro_candidate["match_score"] = max(micro_candidate.get("match_score", 0.0), 0.90)
+            micro_candidate.setdefault("match_reasons", []).append("视频通话等后续能力可拆分为独立服务，便于快速扩展")
+            micro_candidate["rule_engine_note"] = "即时通讯扩展场景触发：微服务作为备选架构"
+        else:
+            micro_name = find_kb_name("Microservices") or find_kb_name("微服务")
+            if micro_name:
+                candidates.append({
+                    "name": micro_name,
+                    "match_score": 0.90,
+                    "match_reasons": [
+                        "视频通话等后续能力可拆分为独立服务，便于快速扩展",
+                        "用户、消息、音视频、通知等模块可独立部署和水平扩容",
+                    ],
+                    "risks": [
+                        "服务拆分会增加部署、监控和服务治理复杂度",
+                        "跨服务调用需要处理链路追踪、限流和降级",
+                    ],
+                    "rule_engine_note": "即时通讯扩展场景触发：微服务作为备选架构",
+                })
+
+        cqrs_candidate = find_candidate("CQRS")
+        if cqrs_candidate:
+            cqrs_candidate["match_score"] = min(cqrs_candidate.get("match_score", 0.0), 0.58)
+            cqrs_candidate["rule_engine_note"] = "该需求没有强交易/审计/读写分离信号，CQRS不作为主要候选"
+
+        p2p_explicit_signal = has_any(["P2P", "对等", "点对点", "去中心化", "区块链", "CDN", "边缘节点", "文件共享"])
+        if not p2p_explicit_signal:
+            p2p_candidate = find_candidate("Peer-to-Peer") or find_candidate("对等") or find_candidate("P2P")
+            if p2p_candidate:
+                p2p_candidate["match_score"] = min(p2p_candidate.get("match_score", 0.0), 0.55)
+                p2p_candidate["rule_engine_note"] = "即时通讯需求没有明确P2P/去中心化信号，对等架构不作为主要候选"
     
     # 应用正向加分
     for kb_names, keywords, boost in promotion_rules:
