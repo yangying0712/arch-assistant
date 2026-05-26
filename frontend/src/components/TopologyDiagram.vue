@@ -1,7 +1,69 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{ archName: string }>()
+export interface TopologyNode {
+  id: string
+  label: string
+  type: string
+  hint?: string
+  x: number
+  y: number
+}
+
+export interface TopologyEdge {
+  from: string
+  to: string
+  label?: string
+  type?: string
+}
+
+export interface RequirementTopology {
+  title: string
+  style_key: string
+  arch_name: string
+  requirements?: string[]
+  nodes: TopologyNode[]
+  edges: TopologyEdge[]
+}
+
+const props = defineProps<{ archName: string; topology?: RequirementTopology | null }>()
+
+const hasDynamicTopology = computed(() => Boolean(props.topology?.nodes?.length))
+const dynamicNodeMap = computed(() => new Map((props.topology?.nodes || []).map(node => [node.id, node])))
+const dynamicEdges = computed(() => (props.topology?.edges || [])
+  .map(edge => ({ ...edge, source: dynamicNodeMap.value.get(edge.from), target: dynamicNodeMap.value.get(edge.to) }))
+  .filter(edge => edge.source && edge.target))
+
+function nodeFill(type: string) {
+  if (type === 'store') return 'url(#dyn-green)'
+  if (type === 'agent') return 'url(#dyn-violet)'
+  if (type === 'event') return 'url(#dyn-amber)'
+  if (type === 'guard') return 'url(#dyn-rose)'
+  if (type === 'actor' || type === 'endpoint' || type === 'output') return 'url(#dyn-blue)'
+  return 'url(#dyn-cyan)'
+}
+
+function edgeStroke(type = 'sync') {
+  if (type === 'event' || type === 'stream') return '#34d399'
+  if (type === 'command') return '#fbbf24'
+  if (type === 'message') return '#c4b5fd'
+  return '#67e8f9'
+}
+
+function shortText(value = '', limit = 13) {
+  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value
+}
+
+function edgePath(edge: { source?: TopologyNode; target?: TopologyNode }) {
+  if (!edge.source || !edge.target) return ''
+  const dx = Math.abs(edge.target.x - edge.source.x)
+  if (dx < 80) {
+    const midY = (edge.source.y + edge.target.y) / 2
+    return `M${edge.source.x} ${edge.source.y} C${edge.source.x + 120} ${midY}, ${edge.target.x - 120} ${midY}, ${edge.target.x} ${edge.target.y}`
+  }
+  const offset = edge.source.y === edge.target.y ? 0 : 28
+  return `M${edge.source.x} ${edge.source.y} C${edge.source.x + dx / 2} ${edge.source.y - offset}, ${edge.target.x - dx / 2} ${edge.target.y + offset}, ${edge.target.x} ${edge.target.y}`
+}
 
 const defs = `
   <defs>
@@ -243,11 +305,74 @@ const selectedSVG = computed(() => diagrams[pickKey(props.archName)] ?? diagrams
   <section class="glass p-5 animate-in">
     <div class="mb-4">
       <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">Topology</p>
-      <h3 class="mt-1 text-lg font-bold text-white">架构拓扑图</h3>
+      <h3 class="mt-1 text-lg font-bold text-white">{{ topology?.title || '架构拓扑图' }}</h3>
       <p class="mt-1 text-xs text-slate-400">{{ archName }}</p>
     </div>
     <div class="diagram-frame overflow-hidden rounded-lg border border-white/10 bg-slate-950/50">
-      <svg viewBox="0 0 960 540" class="h-auto w-full topology-svg" v-html="selectedSVG" />
+      <svg v-if="hasDynamicTopology" viewBox="0 0 960 540" class="h-auto w-full topology-svg" role="img" aria-label="需求定制架构拓扑图">
+        <defs>
+          <marker id="dyn-arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#67e8f9"/>
+          </marker>
+          <linearGradient id="dyn-bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#071426"/>
+            <stop offset="100%" stop-color="#0f172a"/>
+          </linearGradient>
+          <linearGradient id="dyn-blue" x1="0" x2="1"><stop offset="0%" stop-color="#0891b2"/><stop offset="100%" stop-color="#2563eb"/></linearGradient>
+          <linearGradient id="dyn-cyan" x1="0" x2="1"><stop offset="0%" stop-color="#0e7490"/><stop offset="100%" stop-color="#14b8a6"/></linearGradient>
+          <linearGradient id="dyn-green" x1="0" x2="1"><stop offset="0%" stop-color="#059669"/><stop offset="100%" stop-color="#0d9488"/></linearGradient>
+          <linearGradient id="dyn-violet" x1="0" x2="1"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#4f46e5"/></linearGradient>
+          <linearGradient id="dyn-amber" x1="0" x2="1"><stop offset="0%" stop-color="#b45309"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient>
+          <linearGradient id="dyn-rose" x1="0" x2="1"><stop offset="0%" stop-color="#be123c"/><stop offset="100%" stop-color="#e11d48"/></linearGradient>
+          <filter id="dyn-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#020617" flood-opacity=".42"/>
+          </filter>
+        </defs>
+
+        <rect x="16" y="16" width="928" height="508" rx="22" fill="url(#dyn-bg)" stroke="#244564"/>
+        <g opacity=".45">
+          <path v-for="x in [64, 112, 160, 208, 256, 304, 352, 400, 448, 496, 544, 592, 640, 688, 736, 784, 832, 880]" :key="`vx-${x}`" :d="`M${x} 28V512`" stroke="#1e3a5f" stroke-width=".7"/>
+          <path v-for="y in [64, 112, 160, 208, 256, 304, 352, 400, 448, 496]" :key="`hy-${y}`" :d="`M28 ${y}H932`" stroke="#1e3a5f" stroke-width=".7"/>
+        </g>
+
+        <g>
+          <path
+            v-for="edge in dynamicEdges"
+            :key="`${edge.from}-${edge.to}-${edge.label}`"
+            :d="edgePath(edge)"
+            fill="none"
+            :stroke="edgeStroke(edge.type)"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            marker-end="url(#dyn-arrow)"
+            :stroke-dasharray="edge.type === 'event' || edge.type === 'message' ? '7 6' : undefined"
+          />
+          <text
+            v-for="edge in dynamicEdges"
+            :key="`${edge.from}-${edge.to}-${edge.label}-label`"
+            :x="((edge.source?.x || 0) + (edge.target?.x || 0)) / 2"
+            :y="((edge.source?.y || 0) + (edge.target?.y || 0)) / 2 - 10"
+            text-anchor="middle"
+            fill="#bae6fd"
+            font-size="11"
+          >
+            {{ shortText(edge.label || '') }}
+          </text>
+        </g>
+
+        <g v-for="node in topology?.nodes || []" :key="node.id" :transform="`translate(${node.x - 66} ${node.y - 30})`">
+          <rect width="132" height="60" rx="14" :fill="nodeFill(node.type)" stroke="rgba(255,255,255,.28)" filter="url(#dyn-shadow)"/>
+          <text x="66" y="28" text-anchor="middle" fill="#fff" font-size="13" font-weight="900">{{ shortText(node.label, 12) }}</text>
+          <text x="66" y="46" text-anchor="middle" fill="#dbeafe" font-size="10">{{ shortText(node.hint || node.type, 18) }}</text>
+        </g>
+
+        <g v-if="topology?.requirements?.length" transform="translate(48 458)">
+          <rect x="0" y="0" width="864" height="42" rx="14" fill="#0f172a" stroke="#334155"/>
+          <text x="20" y="26" fill="#93c5fd" font-size="12" font-weight="800">需求信号</text>
+          <text x="96" y="26" fill="#cbd5e1" font-size="12">{{ topology.requirements.slice(0, 5).join(' / ') }}</text>
+        </g>
+      </svg>
+      <svg v-else viewBox="0 0 960 540" class="h-auto w-full topology-svg" v-html="selectedSVG" />
     </div>
   </section>
 </template>

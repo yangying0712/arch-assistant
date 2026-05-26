@@ -8,11 +8,12 @@ import FeatureTags from './components/FeatureTags.vue'
 import InputPanel from './components/InputPanel.vue'
 import RadarChart from './components/RadarChart.vue'
 import ReportPanel from './components/ReportPanel.vue'
-import TopologyDiagram from './components/TopologyDiagram.vue'
+import TopologyDiagram, { type RequirementTopology } from './components/TopologyDiagram.vue'
 
 interface AnalyzeResult {
   features: Record<string, any> | null
   candidates: Candidate[]
+  topology: RequirementTopology | null
   report: string | null
   cached?: boolean
 }
@@ -21,6 +22,7 @@ const theme = ref<'dark' | 'light'>('dark')
 const result = ref<AnalyzeResult>({
   features: null,
   candidates: [],
+  topology: null,
   report: null,
 })
 const isAnalyzing = ref(false)
@@ -50,6 +52,7 @@ function emptyResult(): AnalyzeResult {
   return {
     features: null,
     candidates: [],
+    topology: null,
     report: null,
     cached: false,
   }
@@ -94,6 +97,12 @@ function applyStreamEvent(data: any) {
   if (data.event === 'candidates') {
     result.value = { ...result.value, candidates: normalizeCandidates(data.data) }
     statusMessage.value = '候选架构已生成，正在整理评估报告...'
+    return
+  }
+
+  if (data.event === 'topology') {
+    result.value = { ...result.value, topology: data.data || null }
+    statusMessage.value = '已生成贴合需求的架构拓扑图...'
     return
   }
 
@@ -151,6 +160,7 @@ async function analyzeWithFallback(prompt: string, sessionId: string) {
   result.value = {
     features: data.features || null,
     candidates: normalizeCandidates(data.candidates),
+    topology: data.topology || null,
     report: '',
     cached: data.cached,
   }
@@ -244,7 +254,7 @@ onBeforeUnmount(stopReportTyping)
         <CandidateCards v-if="result.candidates.length" :candidates="result.candidates" />
         <div v-if="result.candidates.length" class="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <RadarChart :candidates="result.candidates" />
-          <TopologyDiagram :arch-name="topArchName" />
+          <TopologyDiagram :arch-name="topArchName" :topology="result.topology" />
         </div>
         <DecisionTrace v-if="result.candidates.length" :candidates="result.candidates" />
         <ComboRec v-if="result.candidates.length >= 2" :candidates="result.candidates" />
