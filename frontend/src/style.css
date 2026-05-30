@@ -44,6 +44,23 @@ textarea {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
+.app-header-shell {
+  background:
+    linear-gradient(135deg, rgba(37, 63, 91, 0.86), rgba(37, 63, 91, 0.68) 48%, rgba(19, 33, 56, 0.78)),
+    rgba(37, 63, 91, 0.74);
+  box-shadow: 0 14px 38px rgba(2, 6, 23, 0.24);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+.app-main-surface {
+  background:
+    linear-gradient(180deg, rgba(84, 102, 135, 0.56), rgba(84, 102, 135, 0.38) 48%, rgba(84, 102, 135, 0.28)),
+    rgba(84, 102, 135, 0.32);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
 .theme-light {
   color-scheme: light;
   --bg-start: #eaf7ff;
@@ -62,6 +79,16 @@ textarea {
 .theme-light header {
   border-color: rgba(15, 23, 42, 0.10);
   background: rgba(255, 255, 255, 0.62);
+}
+
+.theme-light .app-header-shell {
+  box-shadow: none;
+}
+
+.theme-light .app-main-surface {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .theme-light .text-white,
@@ -221,6 +248,11 @@ textarea {
   --score-accent: var(--cyan);
 }
 
+.rule-engine-note {
+  color: #edc32c;
+  font-weight: 600;
+}
+
 .candidate-primary {
   border-color: rgba(34, 211, 238, 0.5);
   --score-accent: var(--cyan);
@@ -279,6 +311,14 @@ textarea {
   background: rgba(127, 29, 29, 0.18);
 }
 
+.trace-risk-copy {
+  color: #f5a8dd;
+}
+
+.trace-risk-copy b {
+  color: inherit;
+}
+
 .trace-index {
   display: flex;
   height: 24px;
@@ -298,6 +338,117 @@ textarea {
   background: linear-gradient(135deg, rgba(49, 46, 129, 0.60), rgba(8, 47, 73, 0.50), rgba(6, 78, 59, 0.26));
   padding: 20px;
   box-shadow: 0 18px 48px rgba(49, 46, 129, 0.18);
+}
+
+.combo-copy {
+  color: #6697d6;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.combo-copy b {
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-weight: inherit;
+}
+
+.combo-primary-arch,
+.combo-secondary-arch {
+  color: #ffffff;
+  font-size: 1.125rem;
+}
+
+.topology-click-target {
+  position: relative;
+  cursor: zoom-in;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.topology-click-target:hover,
+.topology-click-target:focus-visible {
+  border-color: rgba(34, 211, 238, 0.45);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.14);
+}
+
+.topology-expand-hint {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  border: 1px solid rgba(103, 232, 249, 0.36);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  padding: 5px 10px;
+  color: #bae6fd;
+  font-size: 0.72rem;
+  font-weight: 800;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.topology-click-target:hover .topology-expand-hint,
+.topology-click-target:focus-visible .topology-expand-hint {
+  opacity: 1;
+}
+
+.topology-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(103, 232, 249, 0.38);
+  border-radius: 0;
+  background: rgba(2, 6, 23, 0.92);
+  box-shadow: 0 30px 100px rgba(2, 6, 23, 0.62);
+  cursor: default;
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+}
+
+.topology-expanded:fullscreen {
+  width: 100vw;
+  height: 100vh;
+}
+
+.topology-expanded .topology-svg {
+  max-height: calc(100vh - 32px);
+  width: min(100vw - 32px, 1600px);
+}
+
+.topology-close-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  border: 1px solid rgba(103, 232, 249, 0.35);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.86);
+  padding: 8px 12px;
+  color: #e0f2fe;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.topology-close-button:hover,
+.topology-close-button:focus-visible {
+  border-color: rgba(103, 232, 249, 0.68);
+  background: rgba(14, 116, 144, 0.45);
+  outline: none;
+}
+
+@media (max-width: 640px) {
+  .topology-expanded {
+    inset: 0;
+  }
+
+  .topology-expanded .topology-svg {
+    max-height: calc(100vh - 20px);
+    width: calc(100vw - 20px);
+  }
 }
 
 .md-content h2,

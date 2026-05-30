@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed } from 'vue'
 
 const props = defineProps<{ report: string }>()
@@ -30,12 +30,24 @@ function tableToHtml(lines: string[]) {
   return `<div class="report-table-wrap"><table>${thead}${tbody}</table></div>`
 }
 
+function currentChineseDate() {
+  const now = new Date()
+  return `${now.getFullYear()}\u5e74${now.getMonth() + 1}\u6708${now.getDate()}\u65e5`
+}
+
+function normalizeGeneratedReportDates(text: string) {
+  return text.replace(
+    /((?:\u62a5\u544a\u65e5\u671f|\u8bc4\u4f30\u65e5\u671f)\s*[:\uff1a](?:\*\*)?\s*)\d{4}\s*\u5e74\s*\d{1,2}\s*\u6708\s*\d{1,2}\s*\u65e5/g,
+    `$1${currentChineseDate()}`,
+  )
+}
+
 function renderMarkdown(text: string): string {
   if (!text) return ''
 
-  const normalized = text
+  const normalized = normalizeGeneratedReportDates(text)
     .replace(/\r\n/g, '\n')
-    .replace(/^好的[，,].{0,160}?报告[。.]?\s*/s, '')
+    .replace(/^濂界殑[锛?].{0,160}?鎶ュ憡[銆?]?\s*/s, '')
     .replace(/\n{3,}/g, '\n\n')
 
   const lines = normalized.split('\n')
@@ -90,14 +102,14 @@ function renderMarkdown(text: string): string {
       continue
     }
 
-    if (/^([一二三四五六七八九十]+|[IVX]+|\d+)[、.．]\s*\S+/.test(line)) {
+    if (/^([\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+|[IVX]+|\d+)[\u3001.\uff0e\s]\s*\S+/.test(line)) {
       flushList()
       output.push(`<h3>${inlineMarkdown(line)}</h3>`)
       continue
     }
 
     const bullet = line.match(/^[-*]\s+(.+)$/)
-    const ordered = line.match(/^\d+[.、]\s+(.+)$/)
+    const ordered = line.match(/^\d+[.\u3001]\s+(.+)$/)
     if (bullet || ordered) {
       listItems.push(inlineMarkdown((bullet || ordered)![1]))
       continue

@@ -8,6 +8,7 @@
 知识库支持: Neo4j 图数据库 (优先) + JSON 文件 (fallback)
 """
 import json, re, os
+from datetime import date
 from typing import TypedDict, Annotated, Literal
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -35,6 +36,7 @@ class AgentState(TypedDict):
     candidate_styles: list
     recommendations: list
     evaluation_report: str
+    topology: dict
     current_stage: str
     next_step: str
     case_context: str  # 知识进化：历史案例Few-shot上下文
@@ -97,6 +99,15 @@ def build_knowledge_summary() -> str:
             "对等架构 (Peer-to-Peer Architecture)": "P2P/去中心化/点对点/区块链/文件共享/无中心/BitTorrent/IPFS/节点对等/CDN/内容分发/边缘节点/就近/全球部署/智能缓存",
             "Serverless架构": "Serverless/无服务器/函数计算/FaaS/Lambda/按需/定时/凌晨/报表/日报/无需运维/突发/事件触发/拉取数据",
             "插件架构/微内核 (Plugin/Microkernel Architecture)": "插件/模块化/IDE/可扩展平台/微内核/OSGi/SPI/第三方扩展/产品化/API网关/路由/中间件/限流/认证/拦截器/协议转换",
+            "批处理架构 (Batch Processing Architecture)": "批处理/batch/离线/日终/清算/对账/监管报表/批量作业/可重跑/检查点/高吞吐",
+            "主程序-子过程架构 (Main Program-Subroutine Architecture)": "主程序/子过程/main subroutine/过程式/命令行工具/固定流程/本地工具/简单稳定",
+            "面向对象架构 (Object-Oriented Architecture)": "面向对象/object oriented/OO/类/对象/封装/继承/多态/图形对象/撤销重做/领域对象",
+            "仓库架构 (Repository Architecture)": "仓库/repository/共享数据/统一知识库/中央数据存储/多工具集成/元数据/主数据",
+            "黑板架构 (Blackboard Architecture)": "黑板/blackboard/共享工作区/知识源/多模型/增量推理/协同诊断/共享状态",
+            "解释器架构 (Interpreter Architecture)": "解释器/interpreter/DSL/脚本/运行时解析/脚本引擎/模板/字节码/虚拟机",
+            "规则系统架构 (Rule-Based System Architecture)": "规则系统/rule based/规则引擎/推理机/事实库/规则库/审批/风控/可解释决策",
+            "进程通信架构 (Communicating Processes Architecture)": "进程通信/communicating processes/IPC/多进程/Socket/RPC/消息通道/调度进程/工作进程",
+            "多Agent架构 (Multi-Agent Architecture)": "多Agent/multi-agent/智能体协作/规划Agent/检索Agent/评审Agent/协调Agent/共享记忆/任务分解",
         }
         
         anti_signals = {
@@ -112,6 +123,15 @@ def build_knowledge_summary() -> str:
             "对等架构 (Peer-to-Peer Architecture)": "中央控制/强一致性/合规监管/事务",
             "Serverless架构": "长时间运行/有状态/精细控制/延迟敏感实时系统",
             "插件架构/微内核 (Plugin/Microkernel Architecture)": "简单应用/不需扩展/实时系统/一次性项目",
+            "批处理架构 (Batch Processing Architecture)": "实时交互/毫秒级响应/同步请求响应/人工频繁干预",
+            "主程序-子过程架构 (Main Program-Subroutine Architecture)": "大型分布式/多团队/频繁扩展/复杂领域模型",
+            "面向对象架构 (Object-Oriented Architecture)": "纯数据流水线/极简脚本/无状态批处理",
+            "仓库架构 (Repository Architecture)": "去中心化/点对点/低延迟直连/写冲突极高",
+            "黑板架构 (Blackboard Architecture)": "简单CRUD/严格线性流程/高吞吐交易",
+            "解释器架构 (Interpreter Architecture)": "极致性能/规则很少/无需运行时配置",
+            "规则系统架构 (Rule-Based System Architecture)": "规则很少/深度算法推理/高频低延迟核心交易",
+            "进程通信架构 (Communicating Processes Architecture)": "极小单体工具/无需隔离/强共享内存",
+            "多Agent架构 (Multi-Agent Architecture)": "确定性简单流程/极低延迟交易/缺少评估监控",
         }
         
         sig = signals.get(name, "")
@@ -272,6 +292,16 @@ def rule_engine_validate(candidates: list[dict], features: dict, requirement: st
         (["CQRS"], ["CQRS", "读写分离", "事件溯源", "命令查询", "读写负载差异", "复杂查询", "报表系统", "审计", "银行交易", "银行核心", "银行", "转账", "存款", "贷款", "一致性", "事务", "版本历史", "Feed流", "聚合推送", "动态推送", "冲突解决", "文件同步", "离线编辑"], 0.35),
         # 六边形触发词（加强权重）
         (["六边形"], ["六边形", "端口适配器", "DDD", "领域驱动", "防腐层", "依赖反转", "可测试性优先", "核心业务复杂", "保险", "理赔", "对接外部", "审计追溯", "对接多个外部", "报案", "查勘", "定损", "理算", "支付全流程"], 0.30),
+        # 课程经典风格触发词
+        (["批处理"], ["批处理", "batch", "离线", "日终", "清算", "对账", "监管报表", "批量作业", "可重跑", "检查点"], 0.35),
+        (["主程序-子过程"], ["主程序", "子过程", "main subroutine", "命令行工具", "固定流程", "本地工具", "过程式", "简单稳定"], 0.30),
+        (["面向对象"], ["面向对象", "object oriented", "OO", "图形对象", "连接线", "属性面板", "撤销重做", "领域对象", "类", "对象"], 0.30),
+        (["仓库"], ["仓库", "repository", "共享数据", "统一知识库", "中央数据", "多工具", "元数据", "知识管理"], 0.32),
+        (["黑板"], ["黑板", "blackboard", "共享工作区", "知识源", "多模型", "增量推理", "协同诊断", "医生反馈"], 0.35),
+        (["解释器"], ["解释器", "interpreter", "DSL", "脚本", "运行时解析", "脚本引擎", "模板", "字节码"], 0.35),
+        (["规则系统"], ["规则系统", "rule based", "规则引擎", "推理机", "事实库", "规则库", "审批", "风控", "征信", "负债率", "可配置规则"], 0.35),
+        (["进程通信"], ["进程通信", "communicating processes", "IPC", "多进程", "Socket", "RPC", "消息通道", "调度进程", "工作进程", "分布式爬虫"], 0.32),
+        (["多Agent"], ["多Agent", "multi-agent", "智能体", "规划Agent", "检索Agent", "评审Agent", "协调Agent", "共享记忆", "任务分解"], 0.35),
     ]
     
     # 构建候选名称到架构的映射
@@ -297,6 +327,24 @@ def rule_engine_validate(candidates: list[dict], features: dict, requirement: st
             if keyword.lower() in kb_name.lower():
                 return kb_name
         return None
+
+    def ensure_candidate(keyword: str, score: float, reasons: list[str], risks: list[str] | None = None) -> None:
+        if find_candidate(keyword):
+            return
+        kb_name = find_kb_name(keyword)
+        if not kb_name:
+            return
+        candidates.append({
+            "name": kb_name,
+            "match_score": score,
+            "match_reasons": reasons,
+            "risks": risks or ["该风格由规则引擎根据强关键词补入，仍需结合具体非功能约束校验。"],
+            "rule_engine_note": "强关键词触发：规则引擎补入候选",
+        })
+        for name in full_kb:
+            if name == kb_name:
+                candidate_map[name] = candidates[-1]
+                break
 
     # Course-reference scenario:
     # cross-platform IM + massive online users + realtime reliable messages + future video calls
@@ -347,6 +395,14 @@ def rule_engine_validate(candidates: list[dict], features: dict, requirement: st
     for kb_names, keywords, boost in promotion_rules:
         if any(kw.lower() in req_lower for kw in keywords):
             for kb_name in kb_names:
+                ensure_candidate(
+                    kb_name,
+                    min(0.96, 0.68 + boost),
+                    [
+                        f"需求中出现 {kb_name} 的强触发词：{', '.join([kw for kw in keywords if kw.lower() in req_lower][:3])}",
+                        "该风格与课程经典体系结构分类中的适用场景一致。",
+                    ],
+                )
                 for cand_name, cand in candidate_map.items():
                     if kb_name in cand_name:
                         old_score = cand.get("match_score", 0.5)
@@ -354,6 +410,17 @@ def rule_engine_validate(candidates: list[dict], features: dict, requirement: st
                         cand["rule_engine_note"] = f"关键词触发加分 +{boost:.0%}"
                         logger.info(f"   规则引擎加分: {cand_name} +{boost:.0%} (关键词匹配)")
                         break
+
+    batch_signal = has_any(["批处理", "batch", "离线", "日终", "清算", "对账", "监管报表", "批量作业", "可重跑"])
+    if batch_signal:
+        batch_candidate = find_candidate("批处理") or find_candidate("Batch")
+        if batch_candidate:
+            batch_candidate["match_score"] = max(batch_candidate.get("match_score", 0.0), 0.98)
+            batch_candidate["rule_engine_note"] = "离线批量作业场景触发：批处理作为首选架构"
+        cqrs_candidate = find_candidate("CQRS")
+        if cqrs_candidate and not has_any(["转账", "支付", "存款", "贷款", "实时交易", "强一致事务"]):
+            cqrs_candidate["match_score"] = min(cqrs_candidate.get("match_score", 0.0), 0.82)
+            cqrs_candidate["rule_engine_note"] = "该需求更偏离线批量作业，CQRS作为审计/查询补充候选"
     
     # ── 负面过滤规则 ──
     validated = []
@@ -390,6 +457,154 @@ def rule_engine_validate(candidates: list[dict], features: dict, requirement: st
     
     return validated
 
+# ── Requirement-aware Topology ─────────────────────
+def _topology_key(arch_name: str) -> str:
+    name = arch_name.lower()
+    if "cqrs" in name:
+        return "cqrs"
+    if "pipe" in name or "管道" in arch_name or "过滤器" in arch_name:
+        return "pipe"
+    if "规则系统" in arch_name or "rule" in name:
+        return "rule_system"
+    if "解释器" in arch_name or "interpreter" in name:
+        return "interpreter"
+    if "多agent" in name or "multi-agent" in name:
+        return "multi_agent"
+    if "黑板" in arch_name or "blackboard" in name:
+        return "blackboard"
+    if "仓库" in arch_name or "repository" in name:
+        return "repository"
+    if "批处理" in arch_name or "batch" in name:
+        return "batch"
+    if "进程通信" in arch_name or "communicating" in name:
+        return "processes"
+    if "面向对象" in arch_name or "object-oriented" in name or "object oriented" in name:
+        return "object_oriented"
+    if "主程序" in arch_name or "subroutine" in name:
+        return "main_subroutine"
+    if "microservice" in name or "微服务" in arch_name:
+        return "microservices"
+    if "event" in name or "事件" in arch_name:
+        return "event"
+    if "六边形" in arch_name or "hexagonal" in name:
+        return "hexagonal"
+    if "layered" in name or "分层" in arch_name:
+        return "layered"
+    return "default"
+
+def _node(node_id: str, label: str, node_type: str, hint: str, x: int, y: int) -> dict:
+    return {"id": node_id, "label": label, "type": node_type, "hint": hint, "x": x, "y": y}
+
+def _edge(source: str, target: str, label: str, edge_type: str = "sync") -> dict:
+    return {"from": source, "to": target, "label": label, "type": edge_type}
+
+def build_requirement_topology(requirement: str, features: dict, candidates: list[dict]) -> dict:
+    """基于需求特征和首选架构生成可视化拓扑模型，前端可直接渲染节点/边。"""
+    top_name = candidates[0].get("name", "通用架构") if candidates else "通用架构"
+    key = _topology_key(top_name)
+    req = requirement.lower()
+    domain = features.get("domain") or "目标系统"
+    requirements = [
+        *[str(x) for x in features.get("features", [])[:4]],
+        *[str(x) for x in features.get("key_requirements", [])[:4]],
+    ][:6]
+
+    def pipe_labels() -> list[str]:
+        if any(word in req for word in ["视频", "转码", "水印", "缩略图", "审核"]):
+            return ["视频上传", "转码", "加水印", "生成缩略图", "内容审核", "发布/存储"]
+        if any(word in req for word in ["ci/cd", "构建", "测试", "部署"]):
+            return ["代码提交", "构建", "自动化测试", "制品归档", "审批", "部署"]
+        return ["输入数据", "清洗", "转换", "校验", "聚合", "输出结果"]
+
+    if key == "cqrs":
+        transaction_label = "交易命令" if any(w in req for w in ["银行", "转账", "存款", "贷款"]) else "业务命令"
+        read_label = "账户/审计查询" if "银行" in req else "查询模型"
+        nodes = [
+            _node("client", "用户/外部系统", "actor", f"来自需求领域：{domain}", 70, 230),
+            _node("command", transaction_label, "command", "处理写操作和事务边界", 270, 155),
+            _node("write_db", "写库/事件日志", "store", "保存权威事实和审计记录", 270, 330),
+            _node("projection", "事件投影", "event", "把写侧事实同步到读模型", 500, 330),
+            _node("query", read_label, "query", "面向高频读取优化", 700, 155),
+            _node("read_db", "读库/缓存", "store", "支撑报表、历史和聚合查询", 700, 330),
+        ]
+        edges = [_edge("client", "command", "提交命令", "command"), _edge("command", "write_db", "事务写入", "command"), _edge("write_db", "projection", "发布领域事件", "event"), _edge("projection", "read_db", "更新投影视图", "event"), _edge("client", "query", "读取", "sync"), _edge("query", "read_db", "查询优化视图", "sync")]
+    elif key == "pipe":
+        labels = pipe_labels()
+        nodes = [_node(f"step{i}", label, "filter" if i not in (0, len(labels) - 1) else "endpoint", f"需求定制步骤：{label}", 90 + i * 150, 245) for i, label in enumerate(labels)]
+        edges = [_edge(f"step{i}", f"step{i+1}", "流转", "stream") for i in range(len(labels) - 1)]
+    elif key == "rule_system":
+        nodes = [
+            _node("facts", "申请事实/输入数据", "store", "收入、征信、负债率等事实", 80, 255),
+            _node("rules", "规则库", "store", "地区政策、风控和审批规则", 300, 130),
+            _node("engine", "推理机", "compute", "匹配规则并解释决策", 490, 255),
+            _node("audit", "命中记录", "store", "记录规则命中和人工复核依据", 680, 130),
+            _node("decision", "审批结果", "output", "通过、拒绝或人工复核", 790, 255),
+        ]
+        edges = [_edge("facts", "engine", "输入事实"), _edge("rules", "engine", "加载规则"), _edge("engine", "audit", "记录解释", "event"), _edge("engine", "decision", "输出决策")]
+    elif key == "multi_agent":
+        nodes = [
+            _node("user", "用户目标", "actor", f"任务领域：{domain}", 70, 250),
+            _node("coordinator", "协调Agent", "agent", "拆解任务并汇总结论", 260, 250),
+            _node("planner", "规划Agent", "agent", "制定步骤和约束", 470, 120),
+            _node("researcher", "检索Agent", "agent", "收集资料和证据", 470, 250),
+            _node("reviewer", "评审Agent", "agent", "校验结论和风险", 470, 380),
+            _node("memory", "共享记忆/黑板", "store", "保存上下文、案例和中间结果", 720, 250),
+        ]
+        edges = [_edge("user", "coordinator", "提交目标"), _edge("coordinator", "planner", "分派规划", "message"), _edge("coordinator", "researcher", "分派检索", "message"), _edge("coordinator", "reviewer", "分派评审", "message"), _edge("planner", "memory", "写入计划", "event"), _edge("researcher", "memory", "写入证据", "event"), _edge("reviewer", "memory", "写入反馈", "event"), _edge("memory", "coordinator", "汇总上下文", "message")]
+    elif key == "blackboard":
+        nodes = [
+            _node("source1", "影像/数据模型", "compute", "独立知识源", 90, 150),
+            _node("source2", "文本/规则模型", "compute", "独立知识源", 90, 340),
+            _node("controller", "控制器", "compute", "选择下一步推理", 370, 250),
+            _node("blackboard", "共享黑板", "store", "沉淀中间结论和置信度", 600, 250),
+            _node("result", "综合结论", "output", "面向用户输出", 810, 250),
+        ]
+        edges = [_edge("source1", "blackboard", "写入线索", "event"), _edge("source2", "blackboard", "写入线索", "event"), _edge("blackboard", "controller", "读取状态"), _edge("controller", "source1", "调度"), _edge("controller", "source2", "调度"), _edge("blackboard", "result", "形成结论")]
+    elif key == "repository":
+        nodes = [
+            _node("tool1", "检索工具", "compute", "读取共享知识", 110, 130),
+            _node("tool2", "标注/审核工具", "compute", "写入元数据", 110, 370),
+            _node("repo", "中心知识库/仓库", "store", "统一文档、元数据和权限", 430, 250),
+            _node("qa", "问答服务", "compute", "基于仓库生成回答", 720, 130),
+            _node("governance", "权限/治理", "guard", "集中控制访问和版本", 720, 370),
+        ]
+        edges = [_edge("tool1", "repo", "查询/索引"), _edge("tool2", "repo", "写入标注"), _edge("repo", "qa", "检索上下文"), _edge("governance", "repo", "治理策略")]
+    elif key == "batch":
+        nodes = [
+            _node("sources", "交易/业务数据源", "store", "批量输入", 80, 250),
+            _node("scheduler", "作业调度器", "compute", "夜间、日终或定时触发", 270, 250),
+            _node("batch", "批处理作业", "compute", "清算、对账、报表生成", 470, 250),
+            _node("checkpoint", "检查点/审计日志", "store", "支持失败恢复和重跑", 670, 140),
+            _node("output", "报表/结果库", "output", "监管报表或批量结果", 790, 300),
+        ]
+        edges = [_edge("sources", "scheduler", "提交批次"), _edge("scheduler", "batch", "触发作业"), _edge("batch", "checkpoint", "记录进度", "event"), _edge("batch", "output", "输出结果")]
+    elif key == "processes":
+        nodes = [
+            _node("scheduler", "调度进程", "compute", "分配任务和URL", 130, 250),
+            _node("queue", "消息通道", "event", "进程间通信", 330, 250),
+            _node("worker1", "工作进程 A", "compute", "并发执行任务", 560, 140),
+            _node("worker2", "工作进程 B", "compute", "并发执行任务", 560, 360),
+            _node("result", "结果汇聚", "store", "回传抓取或计算结果", 800, 250),
+        ]
+        edges = [_edge("scheduler", "queue", "投递任务", "message"), _edge("queue", "worker1", "消费任务", "message"), _edge("queue", "worker2", "消费任务", "message"), _edge("worker1", "result", "回传结果", "message"), _edge("worker2", "result", "回传结果", "message")]
+    else:
+        nodes = [
+            _node("entry", "用户入口", "actor", f"需求领域：{domain}", 90, 250),
+            _node("core", top_name.split(" (")[0], "compute", "首选架构核心组件", 360, 250),
+            _node("data", "数据/状态", "store", "承载业务数据和历史记录", 650, 150),
+            _node("integration", "外部集成", "compute", "对接下游系统或服务", 650, 350),
+        ]
+        edges = [_edge("entry", "core", "请求/命令"), _edge("core", "data", "读写"), _edge("core", "integration", "调用/事件")]
+
+    return {
+        "title": f"{domain}的{top_name.split(' (')[0]}拓扑",
+        "style_key": key,
+        "arch_name": top_name,
+        "requirements": list(dict.fromkeys(requirements)),
+        "nodes": nodes,
+        "edges": edges,
+    }
+
 # ── Step 4: Evaluation Agent ───────────────────────
 EVALUATION_PROMPT = """你是一个软件架构评估专家。基于候选架构风格进行多维度对比分析。
 
@@ -399,7 +614,11 @@ EVALUATION_PROMPT = """你是一个软件架构评估专家。基于候选架构
 用户需求：
 {requirement}
 
+Report date:
+{report_date}
+
 请生成一份专业评估报告，需包含以下部分（用中文）：
+If the report includes a report date or evaluation date, use the exact Report date above. Do not invent or reuse example dates.
 
 ## 一、多维度对比分析
 从 可扩展性、性能、实现复杂度、部署难度、团队要求 五个维度对比各候选架构。
@@ -424,16 +643,23 @@ async def evaluation(state: AgentState) -> AgentState:
     validated = rule_engine_validate(state["candidate_styles"], state["extracted_features"], state["user_requirement"])
     state["candidate_styles"] = validated
     
+    today = date.today()
     messages = [
         SystemMessage(content=EVALUATION_PROMPT.format(
             candidates=json.dumps(validated, ensure_ascii=False, indent=2),
-            requirement=state["user_requirement"]
+            requirement=state["user_requirement"],
+            report_date=today.isoformat(),
         )),
         HumanMessage(content="请生成架构评估与推荐报告。"),
     ]
     response = await llm.ainvoke(messages)
     
     state["evaluation_report"] = response.content
+    state["topology"] = build_requirement_topology(
+        state["user_requirement"],
+        state["extracted_features"],
+        state["candidate_styles"],
+    )
     state["current_stage"] = "evaluation_complete"
     logger.info("   评估报告生成完成")
     return state

@@ -19,6 +19,8 @@ class RunTaskResponse(BaseModel):
     session_id: str
     features: dict | None = None
     candidates: list | None = None
+    topology: dict | None = None
+    case_matches: list | None = None
     report: str | None = None
     current_stage: str
     elapsed_ms: float
@@ -48,7 +50,8 @@ async def run_task(request: RunTaskRequest):
     logger.info(f"📥 Received task: {request.prompt[:80]}...")
     
     # 注入历史案例作为Few-shot上下文
-    case_context = _build_case_context(request.prompt)
+    case_matches = _find_similar_cases(request.prompt)
+    case_context = _build_case_context(case_matches)
     if case_context:
         logger.info(f"📚 知识进化: 注入 {case_context.count(chr(10))} 行案例参考")
     
@@ -59,6 +62,7 @@ async def run_task(request: RunTaskRequest):
         "candidate_styles": [],
         "recommendations": [],
         "evaluation_report": "",
+        "topology": {},
         "current_stage": "init",
         "next_step": "",
         "case_context": case_context,
@@ -77,6 +81,7 @@ async def run_task(request: RunTaskRequest):
             result.get("extracted_features", {}),
             result.get("candidate_styles", []),
             result.get("evaluation_report", ""),
+            request.session_id,
         )
     except Exception as e:
         logger.warning(f"案例保存失败(非致命): {e}")
@@ -88,6 +93,8 @@ async def run_task(request: RunTaskRequest):
         session_id=request.session_id,
         features=result.get("extracted_features"),
         candidates=result.get("candidate_styles"),
+        topology=result.get("topology"),
+        case_matches=case_matches,
         report=result.get("evaluation_report"),
         current_stage=result.get("current_stage", "unknown"),
         elapsed_ms=elapsed,
@@ -97,7 +104,8 @@ async def run_task(request: RunTaskRequest):
 async def run_task_stream(request: RunTaskRequest):
     """SSE 流式返回 Agent 执行进度"""
     async def event_stream():
-        case_context = _build_case_context(request.prompt)
+        case_matches = _find_similar_cases(request.prompt)
+        case_context = _build_case_context(case_matches)
         state: AgentState = {
             "messages": [],
             "user_requirement": request.prompt,
@@ -105,12 +113,15 @@ async def run_task_stream(request: RunTaskRequest):
             "candidate_styles": [],
             "recommendations": [],
             "evaluation_report": "",
+            "topology": {},
             "current_stage": "init",
             "next_step": "",
             "case_context": case_context,
         }
         
         yield f"data: {json.dumps({'event': 'status', 'message': '🔍 正在分析需求...'})}\n\n"
+        if case_matches:
+            yield f"data: {json.dumps({'event': 'case_matches', 'data': case_matches})}\n\n"
         
         # Stream through graph steps manually
         try:
@@ -128,6 +139,9 @@ async def run_task_stream(request: RunTaskRequest):
                 elif "evaluation" in stage:
                     cands = node_data.get("candidate_styles", [])
                     yield f"data: {json.dumps({'event': 'candidates', 'data': cands})}\n\n"
+                    topology = node_data.get("topology", {})
+                    if topology:
+                        yield f"data: {json.dumps({'event': 'topology', 'data': topology})}\n\n"
                     report = node_data.get("evaluation_report", "")
                     yield f"data: {json.dumps({'event': 'report', 'data': report})}\n\n"
 
@@ -151,8 +165,11 @@ def _load_cases() -> list[dict]:
     with open(CASES_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def _save_case(prompt: str, features: dict, candidates: list, report: str):
+def _save_case(prompt: str, features: dict, candidates: list, report: str, session_id: str = ""):
     """自动保存分析案例，用于知识进化"""
+    if session_id.lower().startswith(("batch_", "test_", "smoke_", "e2e_")):
+        logger.info(f"📚 知识进化: 跳过测试会话案例保存 ({session_id})")
+        return
     cases = _load_cases()
     # 去重：相似prompt不重复存
     prompt_lower = prompt.strip().lower()
@@ -179,26 +196,55 @@ def _write_cases(cases: list):
     with open(CASES_PATH, "w", encoding="utf-8") as f:
         json.dump(cases, f, ensure_ascii=False, indent=2)
 
-def _build_case_context(prompt: str, max_cases: int = 3) -> str:
-    """检索相似历史案例，生成Few-shot上下文"""
+def _case_terms(case: dict) -> set[str]:
+    terms = set()
+    features = case.get("features", {})
+    for value in [
+        features.get("domain", ""),
+        *features.get("features", []),
+        *features.get("key_requirements", []),
+        *[c.get("name", "") for c in case.get("candidates", [])[:3]],
+    ]:
+        value = str(value).strip().lower()
+        if len(value) >= 2:
+            terms.add(value)
+    return terms
+
+def _find_similar_cases(prompt: str, max_cases: int = 3) -> list[dict]:
+    """检索相似历史案例，返回可展示的命中说明。"""
     cases = _load_cases()
     if not cases:
-        return ""
-    # 简单关键词匹配排序
-    prompt_words = set(prompt.lower().split())
+        return []
+    prompt_lower = prompt.lower()
     scored = []
     for c in cases:
-        case_words = set(c.get("prompt", "").lower().split())
-        score = len(prompt_words & case_words)
-        scored.append((score, c))
+        matched_terms = [term for term in _case_terms(c) if term and term in prompt_lower]
+        if not matched_terms:
+            case_prompt = c.get("prompt", "").lower()
+            matched_terms = [word for word in prompt_lower.split() if len(word) > 2 and word in case_prompt]
+        score = len(matched_terms)
+        if score > 0:
+            scored.append((score, matched_terms[:4], c))
     scored.sort(key=lambda x: -x[0])
-    
-    lines = ["\n【历史成功案例（Few-shot参考）】"]
-    for score, case in scored[:max_cases]:
-        if score < 3:
-            continue
+    matches = []
+    for score, terms, case in scored[:max_cases]:
         cand_names = [c.get("name", "?") for c in case.get("candidates", [])[:2]]
-        lines.append(f"- 需求: {case['prompt'][:80]}... → 推荐: {' > '.join(cand_names)}")
+        matches.append({
+            "prompt": case.get("prompt", "")[:90],
+            "matched_terms": terms,
+            "recommendations": cand_names,
+            "score": score,
+            "count": case.get("count", 1),
+        })
+    return matches
+
+def _build_case_context(matches: list[dict]) -> str:
+    """根据相似案例命中结果生成Few-shot上下文。"""
+    if not matches:
+        return ""
+    lines = ["\n【历史成功案例（Few-shot参考）】"]
+    for case in matches:
+        lines.append(f"- 需求: {case['prompt']}... → 推荐: {' > '.join(case['recommendations'])}")
     return "\n".join(lines) if len(lines) > 1 else ""
 
 class KnowledgeEntry(BaseModel):
