@@ -15,13 +15,19 @@ from loguru import logger
 
 
 class Neo4jKnowledgeBase:
-    """Neo4j 架构知识图谱查询封装"""
+    """Neo4j 架构知识图谱查询封装。
+
+    这个类把连接检查、图查询和 fallback 入口统一起来。
+    上层只需要调用查询方法，不需要关心图数据库是否真正可用。
+    如果 Neo4j 未启动或认证失败，这里会自动转为不可用状态，交给 JSON 知识库兜底。
+    """
 
     def __init__(self):
         self.uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
         self.auth = (os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "password123"))
         self._driver = None
         self._available = None  # 延迟检测
+        self._unavailable_reason = ""
 
     @property
     def driver(self):
@@ -30,62 +36,107 @@ class Neo4jKnowledgeBase:
         return self._driver
 
     def is_available(self) -> bool:
-        """检测 Neo4j 是否可用"""
+        """检测 Neo4j 是否可用。
+
+        如果连接失败，就把结果缓存为不可用，后续直接走 JSON fallback，避免每次都重试。
+        输入是当前配置的连接信息，输出是布尔值；失败时不影响主流程继续运行。
+        """
         if self._available is not None:
             return self._available
         try:
             with self.driver.session() as session:
                 session.run("RETURN 1")
             self._available = True
+            self._unavailable_reason = ""
             logger.info("✅ Neo4j 知识图谱连接成功")
         except (ServiceUnavailable, AuthError, OSError) as e:
             self._available = False
+            self._unavailable_reason = str(e)
             logger.warning(f"⚠️ Neo4j 不可用，回退到 JSON 知识库: {e}")
         return self._available
+
+    @property
+    def unavailable_reason(self) -> str:
+        return self._unavailable_reason
+
+    def get_graph_stats(self) -> dict:
+        """Return key node/relation counts for acceptance demo and health check."""
+        if not self.is_available():
+            return {}
+        try:
+            with self.driver.session() as session:
+                row = session.run(
+                    """
+                    MATCH (s:ArchitectureStyle)
+                    OPTIONAL MATCH (s)-[:HAS_PRO]->(p:Characteristic)
+                    OPTIONAL MATCH (s)-[:HAS_CON]->(c:Characteristic)
+                    OPTIONAL MATCH (s)-[:SUITABLE_FOR]->(u:UseCase)
+                    OPTIONAL MATCH (s)-[:HAS_KEYWORD]->(k:Keyword)
+                    OPTIONAL MATCH ()-[r:COMPLEMENTS|RELATED_TO]->()
+                    RETURN count(DISTINCT s) AS styles,
+                           count(DISTINCT p) AS pros,
+                           count(DISTINCT c) AS cons,
+                           count(DISTINCT u) AS usecases,
+                           count(DISTINCT k) AS keywords,
+                           count(DISTINCT r) AS relations
+                    """
+                ).single()
+                return dict(row) if row else {}
+        except Exception as e:
+            logger.warning(f"Neo4j graph stats query failed: {e}")
+            return {}
 
     def get_all_styles_summary(self) -> list[dict]:
         """获取所有架构风格的摘要信息（含优缺点的扁平列表）"""
         if not self.is_available():
             return []
-        with self.driver.session() as session:
-            result = session.run("""
-                MATCH (a:ArchitectureStyle)
-                OPTIONAL MATCH (a)-[:HAS_PRO]->(p:Characteristic)
-                OPTIONAL MATCH (a)-[:HAS_CON]->(c:Characteristic)
-                OPTIONAL MATCH (a)-[:HAS_KEYWORD]->(k:Keyword)
-                RETURN a.name AS name,
-                       a.category AS category,
-                       a.description AS desc,
-                       a.keywords AS keywords,
-                       a.anti_keywords AS anti_keywords,
-                       collect(DISTINCT p.name) AS pros,
-                       collect(DISTINCT c.name) AS cons,
-                       collect(DISTINCT k.name) AS kw_list
-                ORDER BY a.name
-            """)
-            return [dict(record) for record in result]
+        try:
+            with self.driver.session() as session:
+                result = session.run("""
+                    MATCH (a:ArchitectureStyle)
+                    OPTIONAL MATCH (a)-[:HAS_PRO]->(p:Characteristic)
+                    OPTIONAL MATCH (a)-[:HAS_CON]->(c:Characteristic)
+                    OPTIONAL MATCH (a)-[:HAS_KEYWORD]->(k:Keyword)
+                    RETURN a.name AS name,
+                           a.category AS category,
+                           a.description AS desc,
+                           a.keywords AS keywords,
+                           a.anti_keywords AS anti_keywords,
+                           collect(DISTINCT p.name) AS pros,
+                           collect(DISTINCT c.name) AS cons,
+                           collect(DISTINCT k.name) AS kw_list
+                    ORDER BY a.name
+                """)
+                return [dict(record) for record in result]
+        except Exception as e:
+            logger.warning(f"Neo4j style summary query failed: {e}")
+            return []
 
     def get_styles_by_keyword(self, keywords: list[str], limit: int = 5) -> list[dict]:
         """根据关键词匹配架构风格（用于规则引擎触发）"""
         if not self.is_available():
             return []
-        with self.driver.session() as session:
-            result = session.run("""
-                MATCH (a:ArchitectureStyle)-[:HAS_KEYWORD]->(k:Keyword)
-                WHERE k.name IN $keywords
-                WITH a, count(k) AS matches
-                ORDER BY matches DESC
-                LIMIT $limit
-                MATCH (a)-[:HAS_PRO]->(p:Characteristic)
-                MATCH (a)-[:HAS_CON]->(c:Characteristic)
-                RETURN a.name AS name,
-                       a.category AS category,
-                       a.description AS desc,
-                       collect(DISTINCT p.name) AS pros,
-                       collect(DISTINCT c.name) AS cons,
-                       matches
-            """, keywords=keywords, limit=limit)
-            return [dict(record) for record in result]
+        try:
+            with self.driver.session() as session:
+                result = session.run("""
+                    MATCH (a:ArchitectureStyle)-[:HAS_KEYWORD]->(k:Keyword)
+                    WHERE k.name IN $keywords
+                    WITH a, count(k) AS matches
+                    ORDER BY matches DESC
+                    LIMIT $limit
+                    MATCH (a)-[:HAS_PRO]->(p:Characteristic)
+                    MATCH (a)-[:HAS_CON]->(c:Characteristic)
+                    RETURN a.name AS name,
+                           a.category AS category,
+                           a.description AS desc,
+                           collect(DISTINCT p.name) AS pros,
+                           collect(DISTINCT c.name) AS cons,
+                           matches
+                """, keywords=keywords, limit=limit)
+                return [dict(record) for record in result]
+        except Exception as e:
+            logger.warning(f"Neo4j keyword query failed: {e}")
+            return []
 
     def get_style_detail(self, style_name: str) -> Optional[dict]:
         """获取单个架构风格的完整信息"""
@@ -128,10 +179,12 @@ class Neo4jKnowledgeBase:
             return [dict(record) for record in result]
 
     def query_architecture_context(self, features: list[str]) -> str:
-        """核心方法：根据提取的需求特征，生成图查询上下文文本
+        """核心方法：根据提取的需求特征，生成图查询上下文文本。
 
-        用于注入到 LLM Prompt 中，替代原有的 JSON 知识摘要。
-        返回：结构化的知识图谱上下文文本，可直接拼接到 System Prompt。
+        输入是需求特征词列表，输出是可拼接到提示词中的结构化上下文。
+        下游会调用关键词匹配、全量摘要和互补关系查询，把图数据库中的知识压缩成 LLM 可直接利用的文本。
+        这样做的原因是：图谱信息更适合做“可解释增强”，而不是直接替代推理链路。
+        如果 Neo4j 不可用，这里会返回空串，让上层自动 fallback 到 JSON 知识库。
         """
         if not self.is_available():
             return ""

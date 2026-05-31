@@ -14,6 +14,9 @@ from neo4j import GraphDatabase
 
 URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 AUTH = (os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "password123"))
+# 这个脚本负责初始化架构知识图谱：创建节点、关系和统计输出。
+# 运行时会把节点、特征和互补关系一次性写入 Neo4j，便于 Agent Runtime 后续做图查询增强。
+# 统计输出是为了确认节点、特征和关联关系都被正确写入，而不是默默失败。
 
 # ── 12 种架构风格完整定义 ────────────────────────
 STYLES = [
@@ -140,25 +143,82 @@ STYLES = [
 ]
 
 
-def init_graph():
+def _create_schema(session):
+    """Create indexes/constraints used by query and demo."""
+    session.run("CREATE CONSTRAINT architecture_style_name IF NOT EXISTS FOR (s:ArchitectureStyle) REQUIRE s.name IS UNIQUE")
+    session.run("CREATE INDEX characteristic_name IF NOT EXISTS FOR (c:Characteristic) ON (c.name)")
+    session.run("CREATE INDEX usecase_name IF NOT EXISTS FOR (u:UseCase) ON (u.name)")
+    session.run("CREATE INDEX keyword_name IF NOT EXISTS FOR (k:Keyword) ON (k.name)")
+
+
+def verify_graph() -> dict:
+    """Verify required labels and relation types for acceptance checks."""
     driver = GraphDatabase.driver(URI, auth=AUTH)
     with driver.session() as session:
-        # 清空旧数据
-        session.run("MATCH (n) DETACH DELETE n")
-        print("已清空旧数据，开始写入 12 种架构风格...")
+        row = session.run(
+            """
+            CALL {
+                MATCH (s:ArchitectureStyle)
+                RETURN count(s) AS styles
+            }
+            CALL {
+                MATCH (c:Characteristic)
+                RETURN count(c) AS characteristics
+            }
+            CALL {
+                MATCH (u:UseCase)
+                RETURN count(u) AS usecases
+            }
+            CALL {
+                MATCH (k:Keyword)
+                RETURN count(k) AS keywords
+            }
+            CALL {
+                MATCH ()-[hp:HAS_PRO]->()
+                RETURN count(hp) AS has_pro
+            }
+            CALL {
+                MATCH ()-[hc:HAS_CON]->()
+                RETURN count(hc) AS has_con
+            }
+            CALL {
+                MATCH ()-[sf:SUITABLE_FOR]->()
+                RETURN count(sf) AS suitable_for
+            }
+            CALL {
+                MATCH ()-[hk:HAS_KEYWORD]->()
+                RETURN count(hk) AS has_keyword
+            }
+            RETURN styles, characteristics, usecases, keywords, has_pro, has_con, suitable_for, has_keyword
+            """
+        ).single()
+        result = dict(row) if row else {}
+    driver.close()
+    return result
+
+
+def init_graph(reset: bool = False):
+    driver = GraphDatabase.driver(URI, auth=AUTH)
+    with driver.session() as session:
+        _create_schema(session)
+        if reset:
+            # Optional full reset for demo environments only.
+            session.run("MATCH (n) DETACH DELETE n")
+            _create_schema(session)
+            print("已清空旧数据并重建索引/约束，开始写入 12 种架构风格...")
+        else:
+            print("保留现有图谱数据，执行幂等写入和更新...")
 
         for i, style in enumerate(STYLES, 1):
             name = style["name"]
 
-            # 创建 ArchitectureStyle 节点
+            # 幂等创建/更新 ArchitectureStyle 节点
             session.run("""
-                CREATE (s:ArchitectureStyle {
-                    name: $name,
-                    category: $category,
-                    description: $description,
-                    keywords: $keywords,
-                    anti_keywords: $anti_keywords
-                })
+                MERGE (s:ArchitectureStyle {name: $name})
+                SET s.category = $category,
+                    s.description = $description,
+                    s.keywords = $keywords,
+                    s.anti_keywords = $anti_keywords
             """, name=name, category=style["category"],
                  description=style["description"],
                  keywords=style["keywords"],
@@ -196,7 +256,7 @@ def init_graph():
                     MERGE (s)-[:HAS_KEYWORD]->(k)
                 """, name=name, kw=kw)
 
-            print(f"  [{i}/12] ✅ {name}")
+            print(f"  [{i}/12] OK {name}")
 
         # 创建架构之间的关联关系（共享特征/互补/互斥）
         print("\n创建架构间关联关系...")
@@ -229,7 +289,7 @@ def init_graph():
             MERGE (a)-[:RELATED_TO {reason: 'API网关场景下，插件架构处理路由中间件，微服务处理业务逻辑'}]->(b)
         """)
 
-        print("✅ 架构间关联关系创建完成")
+        print("OK 架构间关联关系创建完成")
 
         # 统计
         result = session.run("""
@@ -238,33 +298,58 @@ def init_graph():
             OPTIONAL MATCH (s)-[:HAS_CON]->(c)
             OPTIONAL MATCH (s)-[:SUITABLE_FOR]->(u)
             OPTIONAL MATCH (s)-[:HAS_KEYWORD]->(k)
+            OPTIONAL MATCH ()-[r:COMPLEMENTS|RELATED_TO]->()
             RETURN count(DISTINCT s) AS styles,
                    count(DISTINCT p) AS pros,
                    count(DISTINCT c) AS cons,
                    count(DISTINCT u) AS usecases,
-                   count(DISTINCT k) AS keywords
+                   count(DISTINCT k) AS keywords,
+                   count(DISTINCT r) AS relation_count
         """)
         record = result.single()
-        print(f"\n📊 知识图谱统计:")
+        print(f"\n[统计] 知识图谱统计:")
         print(f"   架构风格: {record['styles']} 种")
         print(f"   优点特征: {record['pros']} 条")
         print(f"   缺点特征: {record['cons']} 条")
         print(f"   适用场景: {record['usecases']} 个")
         print(f"   关键词: {record['keywords']} 个")
-        print(f"   关联关系: 4 条 (COMPLEMENTS x3, RELATED_TO x1)")
+        print(f"   关联关系: {record['relation_count']} 条")
 
     driver.close()
-    print("\n🎉 Neo4j 知识图谱初始化完成！")
+    print("\nNeo4j 知识图谱初始化完成")
 
 
 if __name__ == "__main__":
     print(f"连接 Neo4j: {URI}")
     try:
-        init_graph()
+        verify_only = "--verify-only" in sys.argv
+        if verify_only:
+            stats = verify_graph()
+            print("\n📋 Neo4j 图谱验证结果:")
+            print(f"   ArchitectureStyle: {stats.get('styles', 0)}")
+            print(f"   Characteristic: {stats.get('characteristics', 0)}")
+            print(f"   UseCase: {stats.get('usecases', 0)}")
+            print(f"   Keyword: {stats.get('keywords', 0)}")
+            print(f"   HAS_PRO: {stats.get('has_pro', 0)}")
+            print(f"   HAS_CON: {stats.get('has_con', 0)}")
+            print(f"   SUITABLE_FOR: {stats.get('suitable_for', 0)}")
+            print(f"   HAS_KEYWORD: {stats.get('has_keyword', 0)}")
+            if min(
+                stats.get("styles", 0),
+                stats.get("characteristics", 0),
+                stats.get("usecases", 0),
+                stats.get("keywords", 0),
+            ) == 0:
+                print("\n验证未通过：至少一种核心节点不存在，请先运行初始化。")
+                sys.exit(2)
+            print("\n验证通过：核心节点与关系已存在。")
+        else:
+            init_graph(reset=("--reset" in sys.argv))
     except Exception as e:
-        print(f"\n❌ 连接失败: {e}")
+        print(f"\n连接失败: {e}")
         print("请确保:")
         print("  1. Neo4j 服务已启动 (本地: neo4j start, 或 AuraDB 实例运行中)")
         print("  2. .env 中 NEO4J_URI 配置正确")
         print("  3. 如果是 AuraDB: URI 格式为 neo4j+s://<id>.databases.neo4j.io")
+        print("  4. 命令示例: python init_neo4j.py --reset  或  python init_neo4j.py --verify-only")
         sys.exit(1)
